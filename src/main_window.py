@@ -1,30 +1,26 @@
+import datetime
 import PySimpleGUI as sg
-import re
-from DataStaticSim import *
+import ValueChecker as vc
+import DataStaticSim as dss
 from EstadosVistas import EstadosVistas
 from YAMLAdapter import YAMLReader, YAMLWriter
 from KeyDefines import *
-from ValueChecker import *
-import datetime
 
 #################
 #   DEFINES
 #################
 resolution_values = []
+button_menu_hour_list = []
+button_menu_minute_list = []
+
 for i in range(10000):
     resolution_values.append(i)
 
-button_menu_hour_start_str = "00"
-button_menu_minute_start_str = "00"
-button_menu_hour_end_str = "00"
-button_menu_minute_end_str = "00"
-button_menu_hour_list = []
-button_menu_minute_list = []
 for i in range(24):
-    button_menu_hour_list.append(f'{i:02d}')
+    button_menu_hour_list.append(i)
 
 for i in range(60):
-    button_menu_minute_list.append(f'{i:02d}')
+    button_menu_minute_list.append(i)
 
 #   SIZES
 min_width = 10
@@ -41,9 +37,9 @@ geom_min_size = (geom_min_width, geom_min_height)
 
 listbox_size = 5
 
+#todo: hacer esto configurable
 lista_tecnologias = ("DSC", "CIS", "CdTe", "a-Si", "TF-Si")
 lista_conexiones = ("Paralelo", "Serie", "Combinada")
-
 lista_tmy = ("DB1", "DB2", "DB3")
 
 latitud_value = 0
@@ -59,16 +55,6 @@ def popupInValue(title, text):
     event, values = window.read()
     window.close()
     return None if event != 'OK' else values[POPUP_INPUT]
-
-def splitHour(hour):
-    ret = "00"
-    patron = re.compile(":")
-    splitlist = patron.split(hour)
-    if splitlist != None:
-        ret = splitlist
-
-    print(ret)
-    return ret
 
 #############################################
 #   VISTA SIMULACIONES
@@ -342,7 +328,7 @@ def mainloop():
             global latitud_value
             window[LATITUD_INPUT].update(str(latitud_value))
             value = sg.popup_get_text('Enter slider value', keep_on_top=True, no_titlebar=True, size=(10,2))
-            if (ValueChecker().isStringFloat(value)):
+            if (vc.ValueChecker().isStringFloat(value)):
                 window[LATITUD_INPUT].update(str(value))
                 latitud_value = value
             elif value is not None:
@@ -353,7 +339,7 @@ def mainloop():
             window[LONGITUD_INPUT].update(str(longitud_value))
             # value=  popupInValue('', 'Enter slider value')
             value = sg.popup_get_text('Enter slider value', keep_on_top=True, no_titlebar=True, size=(10,2))
-            if (ValueChecker().isStringFloat(value)):
+            if (vc.ValueChecker().isStringFloat(value)):
                 window[LONGITUD_INPUT].update(str(value))
                 longitud_value = value
             elif value is not None:
@@ -382,7 +368,7 @@ def mainloop():
         elif event == GUARDAR_INPUT:
             save_data = checkAllValues(values)
             if save_data:
-                datastaticsim = DataStaticSim(resolucion=values[RESOLUCION_INPUT],
+                datastaticsim = dss.DataStaticSim(resolucion=values[RESOLUCION_INPUT],
                     fecha_inicio=fecha_inicio_timestamp,
                     fecha_fin=fecha_fin_timestamp,
                     lugar=values[LUGAR_INPUT],
@@ -398,12 +384,11 @@ def mainloop():
                     conexion=values[CONEXION_INPUT][0],
                     tipo_datos_radiacion=tipo_datos_radiacion,
                     datos_radiacion="")
-                writer.writeData("D:\GUI FV CAR\model1\src\static_sim_data.yaml", datastaticsim.FromDataToFile())
+                writer.writeData("D:\GUI FV CAR\model1\GUI-FV-CAR\src\static_sim_data.yaml", datastaticsim.FromDataToFile())
         
         elif event == CARGAR_DATOS_INPUT:
             #esto debería abrir un browser
-            #D:\GUI FV CAR\model1\src
-            new_data = reader.readData("D:\GUI FV CAR\model1\src\\test.yaml")
+            new_data = reader.readData("D:\GUI FV CAR\model1\GUI-FV-CAR\src\\test.yaml")
             datastaticsim.FromFileToData(new_data)
             setStaticSimViewValuesFromFile(datastaticsim.GetValues())
 
@@ -412,14 +397,22 @@ def mainloop():
 def generateDateIsoformat(fecha, hora, min):
     """""
     fecha: viene ya en formato YYYY-MM-DD
-    hora: viene en formato HH
-    min: viene en formato MM
-    return: date en formato YYYY-MM-DDTHH:mm:ss
+    hora: int
+    min: int
+    return: date en formato 'YYYY-MM-DDTHH:mm:ss'
     """""
-    checker = ValueChecker()
-    dateStr = f"{fecha}T{hora}:{min}:00"
-    print(dateStr)
-    if checker.isStringDateIsoformat(dateStr):
+    hora_str = str(hora)
+    min_str = str(min)
+    print("generateDateIsoformat::  " + str(hora))
+    print("generateDateIsoformat::  " + str(min))
+    if hora < 10:
+        hora_str = f'{hora:02d}'
+    if min < 10:
+        min_str = f'{min:02d}'
+    
+    dateStr = f"{fecha}T{hora_str}:{min_str}:00"
+    print("generateDateIsoformat::  " + dateStr)
+    if vc.ValueChecker().isStringDateIsoformat(dateStr):
         date = datetime.datetime.fromisoformat(dateStr)
         return date.isoformat()
     else:
@@ -429,16 +422,17 @@ def setStaticSimViewValuesFromFile(data):
     print(data)
 
     window[RESOLUCION_INPUT].update(data["resolucion"])
-    window[FECHA_INICIO].update(data["fecha_inicio"])
-    window[FECHA_FIN].update(data["fecha_fin"])
 
-    hora_y_min_start = splitHour(data["hora_inicio"])
-    window[HORA_INICIO_INPUT].update(value=hora_y_min_start[0])
-    window[MINUTO_INICIO_INPUT].update(value=hora_y_min_start[1])
+    datetimeStart = datetime.datetime.fromisoformat(data["fecha_inicio"])
+    datetimeEnd = datetime.datetime.fromisoformat(data["fecha_fin"])
 
-    hora_y_min_end = splitHour(data["hora_fin"])
-    window[HORA_FINAL_INPUT].update(value=hora_y_min_end[0])
-    window[MINUTO_FINAL_INPUT].update(value=hora_y_min_end[1])
+    window[FECHA_INICIO].update(datetimeStart.date().isoformat())
+    window[FECHA_FIN].update(datetimeEnd.date().isoformat())
+
+    window[HORA_INICIO_INPUT].update(value=datetimeStart.hour)
+    window[MINUTO_INICIO_INPUT].update(value=datetimeStart.minute)
+    window[HORA_FINAL_INPUT].update(value=datetimeEnd.hour)
+    window[MINUTO_FINAL_INPUT].update(value=datetimeEnd.minute)
 
     window[LUGAR_INPUT].update(data["lugar"])
     window[LATITUD_INPUT].update(data["latitud"])
@@ -447,11 +441,11 @@ def setStaticSimViewValuesFromFile(data):
     window[DIM_Y_INPUT].update(data["y"])
     window[CURVATURA_INPUT].update(data["curvatura"])
     window[ORIENTACION_INPUT].update(data["orientacion"])
-    tec_index = ValueChecker().findValueInList(lista_tecnologias, data["tecnologia"])
+    tec_index = vc.ValueChecker().findValueInList(lista_tecnologias, data["tecnologia"])
     window[TECNOLOGIA_INPUT].update(set_to_index=tec_index)
     window[NUM_CEL_X_INPUT].update(data["num_cels_x"])
     window[NUM_CEL_Y_INPUT].update(data["num_cels_y"])
-    con_index = ValueChecker().findValueInList(lista_conexiones, data["conexion"])
+    con_index = vc.ValueChecker().findValueInList(lista_conexiones, data["conexion"])
     window[CONEXION_INPUT].update(set_to_index=con_index)
     global tipo_datos_radiacion
     tipo_datos_radiacion = data["tipo_datos_radiacion"]
@@ -528,33 +522,13 @@ def checkAllValues(values):
         ret = False
         sg.popup_error("Fecha y hora de fin introducidas no válida")
     
-    checker = ValueChecker()
-    if checker.isStringUInt(str(values[RESOLUCION_INPUT])) == False:
-        sg.popup_error("Error en los datos introducidos: " + RESOLUCION_INPUT + ": solo acepta números enteros")
-        ret = False
-
-    if checker.isStringUInt(str(values[NUM_CEL_X_INPUT])) == False:
-        sg.popup_error("Error en los datos introducidos: " + NUM_CEL_X_INPUT + ": solo acepta números enteros")
-        ret = False
-
-    if checker.isStringUInt(str(values[NUM_CEL_Y_INPUT])) == False:
-        sg.popup_error("Error en los datos introducidos: " + NUM_CEL_Y_INPUT + ": solo acepta números enteros")
-        ret = False
-
-    if checker.isStringUInt(str(values[DIM_X_INPUT])) == False:
-        sg.popup_error("Error en los datos introducidos: " + DIM_X_INPUT + ": solo acepta números enteros")
-        ret = False
-    if checker.isStringUInt(str(values[DIM_Y_INPUT])) == False:
-        sg.popup_error("Error en los datos introducidos: " + DIM_Y_INPUT + ": solo acepta números enteros")
-        ret = False
-    
     return ret
 
 def acceptInput(value):
     result = ""
     i = 0
     for i in range(len(value)):
-        if (ValueChecker().isStringInt(value[i])):
+        if (vc.ValueChecker().isStringInt(value[i])):
             result = result + value[i]
     if (result == ""):
         result = "0"
@@ -563,13 +537,11 @@ def acceptInput(value):
 
 if __name__ == "__main__":
     print("MAIN")
-    datastaticsim = DataStaticSim()
+    datastaticsim = dss.DataStaticSim()
     writer = YAMLWriter()
     reader = YAMLReader()
     state = EstadosVistas.Init
     changeState(INIT_SIMULATION)
 
-    #todo: comprobar que todos los valores son válidos
-    #todo: pestaña error si los valores introducidos no son válidos
-    #todo: mejorar visibilidad pop up
-    #todo: set data_radiacion
+
+#todo: set data_radiacion

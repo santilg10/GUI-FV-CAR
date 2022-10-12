@@ -1,6 +1,5 @@
 from enum import Enum
 import re
-import string
 # https://docs.python.org/es/3/howto/regex.html
 
 
@@ -8,7 +7,6 @@ class DateFormat(Enum):
     YYYYMMDD = 0
     DDMMYYYY = 1
     MMDDYYYY = 2
-
 
 class ValueChecker:
     def matchOK(self, match_result, str):
@@ -88,7 +86,7 @@ class ValueChecker:
 
 
 
-    def findValueInList(list, val):
+    def findValueInList(self, list, val):
         """
         list : list to find value
         val : value to find in list

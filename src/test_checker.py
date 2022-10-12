@@ -1,9 +1,10 @@
+import datetime
 from ValueChecker import DateFormat, ValueChecker
 
 iso1 = "YYYY"
 iso2 = "124"
 iso3 = "2022-07-31T23:59"
-isoCompleto = "1998-07-23T10:03:54"
+isoCompleto = "1998-07-23T09:03:54"
 
 checker = ValueChecker()
 
@@ -76,13 +77,15 @@ test = "-6331-"
 assert False == checker.isStringInt(test)
 id += 1
 print("test " + str(+(+id)))
-test = "1234"
-checker.isLastElemNumber(test)
-id += 1
-print("test " + str(+(+id)))
 test = 1234
 assert True == checker.isNumber(test)
 id += 1
-print("test " + str(+(+id)))
-test = 1234
-checker.getLastElem(test)
+
+print("-------------------------------")
+testDate = datetime.datetime.now()
+print(testDate.hour)
+print(testDate.isoformat())
+testDate = datetime.datetime.fromisoformat(isoCompleto)
+print(testDate.isoformat())
+print(testDate.date().isoformat())
+print(testDate.minute)
