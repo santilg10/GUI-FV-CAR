@@ -241,7 +241,8 @@ def StaticSimLayout():
                             [sg.Checkbox("Generación Eléctrica", key=GEN_ELECTRICA_INPUT)]]
 
     acciones_sim_col =      [[sg.B("Guardar", size=min_size, key=GUARDAR_INPUT)],
-                            [sg.B("Cargar datos", size=min_size, key=CARGAR_DATOS_INPUT)],
+                            [sg.Input(key=CARGAR_DATOS_INPUT, enable_events=True, visible=False)], #solo para actualizar automáticamente
+                            [sg.FileBrowse(button_text="Cargar Datos", target=CARGAR_DATOS_INPUT, file_types=(("YAML files", "*.yaml"),))],
                             [sg.B("Simular", size=min_size, key=SIMULAR_INPUT)]]
 
     static_sim_layout =     [[FrameStaticSimData()],
@@ -368,23 +369,7 @@ def mainloop():
         elif event == GUARDAR_INPUT:
             save_data = checkAllValues(values)
             if save_data:
-                datastaticsim = dss.DataStaticSim(resolucion=values[RESOLUCION_INPUT],
-                    fecha_inicio=fecha_inicio_timestamp,
-                    fecha_fin=fecha_fin_timestamp,
-                    lugar=values[LUGAR_INPUT],
-                    latitud=values[LATITUD_INPUT],
-                    longitud=values[LONGITUD_INPUT],
-                    x=values[DIM_X_INPUT],
-                    y=values[DIM_Y_INPUT],
-                    curvatura=values[CURVATURA_INPUT],
-                    orientacion=values[ORIENTACION_INPUT],
-                    tecnologia=values[TECNOLOGIA_INPUT][0],
-                    num_cels_x=values[NUM_CEL_X_INPUT],
-                    num_cels_y=values[NUM_CEL_Y_INPUT],
-                    conexion=values[CONEXION_INPUT][0],
-                    tipo_datos_radiacion=tipo_datos_radiacion,
-                    datos_radiacion="")
-                writer.writeData("D:\GUI FV CAR\model1\GUI-FV-CAR\src\static_sim_data.yaml", datastaticsim.FromDataToFile())
+                saveStaticSimViewValuesToFile(values)
         
         elif event == CARGAR_DATOS_INPUT:
             #esto debería abrir un browser
@@ -451,6 +436,25 @@ def setStaticSimViewValuesFromFile(data):
     tipo_datos_radiacion = data["tipo_datos_radiacion"]
     updateTipoDatosRadiacion(tipo_datos_radiacion=tipo_datos_radiacion)
 
+def saveStaticSimViewValuesToFile(data):
+    datastaticsim = dss.DataStaticSim(resolucion=data[RESOLUCION_INPUT],
+        fecha_inicio=fecha_inicio_timestamp,
+        fecha_fin=fecha_fin_timestamp,
+        lugar=data[LUGAR_INPUT],
+        latitud=data[LATITUD_INPUT],
+        longitud=data[LONGITUD_INPUT],
+        x=data[DIM_X_INPUT],
+        y=data[DIM_Y_INPUT],
+        curvatura=data[CURVATURA_INPUT],
+        orientacion=data[ORIENTACION_INPUT],
+        tecnologia=data[TECNOLOGIA_INPUT][0],
+        num_cels_x=data[NUM_CEL_X_INPUT],
+        num_cels_y=data[NUM_CEL_Y_INPUT],
+        conexion=data[CONEXION_INPUT][0],
+        tipo_datos_radiacion=tipo_datos_radiacion,
+        datos_radiacion="")
+
+    writer.writeData("D:\GUI FV CAR\model1\GUI-FV-CAR\src\static_sim_data.yaml", datastaticsim.FromDataToFile())
 
 #Máquina Estados
 
