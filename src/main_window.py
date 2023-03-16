@@ -1,7 +1,10 @@
+import os
+import subprocess
 import datetime
 import PySimpleGUI as sg
 import ValueChecker as vc
 import DataStaticSim as dss
+import ResultData as rd
 from EstadosVistas import EstadosVistas
 from YAMLAdapter import YAMLReader, YAMLWriter
 from KeyDefines import *
@@ -35,12 +38,21 @@ geom_min_width = 16
 geom_min_height = 1
 geom_min_size = (geom_min_width, geom_min_height)
 
+param_var_size = (20, 1)
+
 listbox_size = 5
 
 #todo: hacer esto configurable
 lista_tecnologias = ("DSC", "CIS", "CdTe", "a-Si", "TF-Si")
-lista_conexiones = ("Paralelo", "Serie", "Combinada")
+# lista_conexiones = ("Paralelo", "Serie", "Combinada")
+lista_conexiones = ("hmSbxPx", "hmSbxPy", 
+                    "hmSxPbx", "hmSxPby", 
+                    "hmSxPx", "hmSxPy", 
+                    "hmSyPbx", "hmSyPby", 
+                    "hmSyPx", "hmSyPy", 
+                    "SbSx", "SSbx", "SSby")
 lista_tmy = ("DB1", "DB2", "DB3")
+lista_parametric_vars = ("azimut", "conexión")
 
 latitud_value = 0
 longitud_value = 0
@@ -206,7 +218,33 @@ def RadiacionLayout():
                         col_tmy,
                         sg.VSeparator(),
                         sg.vtop(col_data_meteo)]]
+    
     return layout_radiacion
+
+
+#################
+#
+#   DATOS PARAMETRIZACIÓN
+#
+#################
+
+def ParametricLayout():
+    parametric_var_layout = [sg.vtop(sg.Text("Variable parametrizable", size=param_var_size)), 
+                            #todo: en vez de listboz -> DropDown
+                            #  sg.Listbox(values=lista_parametric_vars, default_values=lista_parametric_vars[0], size=(min_width, listbox_size), 
+                            #     no_scrollbar=True, select_mode=sg.LISTBOX_SELECT_MODE_SINGLE, key=PARAMETRIC_VAR_INPUT)]
+                             sg.Combo(values=lista_parametric_vars, default_value=lista_parametric_vars[0], size=(min_width, listbox_size),readonly=True, key=PARAMETRIC_VAR_INPUT)]
+    lim_inf_layout =        [sg.Text("Límite inferior", size=param_var_size), sg.Spin(values=resolution_values, size=min_size, key=LIM_INF_INPUT)]
+    lim_sup_layout =        [sg.Text("Límite superior", size=param_var_size), sg.Spin(values=resolution_values, size=min_size, key=LIM_SUP_INPUT)]
+    rango_layout =          [sg.Text("Rango", size=param_var_size), sg.Spin(values=resolution_values, size=min_size, key=RANGO_INPUT)]
+
+    layout_parametric =     [parametric_var_layout,
+                             lim_inf_layout,
+                             lim_sup_layout,
+                             rango_layout]
+
+    return layout_parametric
+
 
 #################
 #
@@ -219,12 +257,35 @@ def FrameStaticSimData():
     # frame_fecha_lugar =         sg.Frame("", FechaYLugarLayout(), background_color="DarkOliveGreen3")
     frame_geometria =           sg.Frame("Geometría", GeometriaLayout(), expand_x=True, expand_y=True)
     frame_configuracion_cel =   sg.Frame("Configuración célula", ConfigCelLayout(), expand_x=True, expand_y=True)
-    frame_radiacion =           sg.Frame("Datos radiación", layout=RadiacionLayout())
+    frame_radiacion =           sg.Frame("Datos radiación", layout=RadiacionLayout(), expand_x=True, expand_y=True)
+    frame_parametrica =         sg.Frame("Datos paramétricos", layout=ParametricLayout(), expand_x=True, expand_y=True)
     static_sim_data_layout =    [[frame_fecha_lugar, frame_configuracion_cel, frame_geometria],
-                                [frame_radiacion]]
+                                [frame_radiacion, frame_parametrica]]
     frame_static_sim_data =     sg.Frame("", layout=static_sim_data_layout)
+    global frame_size
+    frame_size = frame_static_sim_data.Size
     return frame_static_sim_data
 
+
+#################
+#
+#   VISTA RESULTADOS
+#
+#################
+
+def FrameResults():
+    test_image = IMAGES_PATH + "test_image.png"
+    list_results = [RECURSO_SOLAR_TEXT, CURVAS_IV_TEXT, GEN_ELECTRICA_TEXT]
+    result_layout = [[sg.Text("Variable paramétrica", size=param_var_size),
+                      sg.Text("azimuth"),
+                      sg.Combo(values=button_menu_hour_list, default_value=button_menu_hour_list[0], readonly=True, enable_events=True, key=VALOR_PARAMETRICA)],
+                    #  [sg.Text("Recurso solar", size=param_var_size), sg.Image(test_image, key=RECURSO_SOLAR_IMAGE)],
+                    #  [sg.Text("Curva I-V", size=param_var_size), sg.Image(test_image, key=CURVAS_IV_IMAGE)],
+                    #  [sg.Text("Generación eléctrica", size=param_var_size), sg.Image(test_image, GEN_ELECTRICA_IMAGE)]]
+                    [sg.Combo(values=list_results, default_value=list_results[0], size=param_var_size, readonly=True, enable_events=True, key=RESULTADO_INPUT),
+                     sg.Image(test_image, key=RESULT_IMAGE)]]
+    frame_results = sg.Frame("Resultados", result_layout, size=frame_size, key=FRAME_RESULTADOS)
+    return frame_results
 
 #################
 #
@@ -240,29 +301,31 @@ def StaticSimLayout():
                             [sg.Checkbox("Curvas IV", key=CURVAS_IV_INPUT)],
                             [sg.Checkbox("Generación Eléctrica", key=GEN_ELECTRICA_INPUT)]]
 
-    acciones_sim_col =      [[sg.B("Guardar", size=min_size, key=GUARDAR_INPUT)],
+    acciones_sim_col =      [[sg.Input(key=GUARDAR_INPUT, enable_events=True, visible=False)], #solo para actualizar automáticamente
+                            [sg.FileSaveAs(button_text="Guardar", target=GUARDAR_INPUT, file_types=(("YAML files", "*.yaml"),))],
                             [sg.Input(key=CARGAR_DATOS_INPUT, enable_events=True, visible=False)], #solo para actualizar automáticamente
                             [sg.FileBrowse(button_text="Cargar Datos", target=CARGAR_DATOS_INPUT, file_types=(("YAML files", "*.yaml"),))],
                             [sg.B("Simular", size=min_size, key=SIMULAR_INPUT)]]
 
-    static_sim_layout =     [[FrameStaticSimData()],
+    tab_data_layout =       [[FrameStaticSimData()]]
+    tab_results_layout =    [[FrameResults()]]
+    tab_group_layout =      [[sg.Tab("Inputs", tab_data_layout, key=TAB_DATOS),
+                              sg.Tab("Results", tab_results_layout, key=TAB_RESULTADOS, visible=False)]]
+    
+    static_sim_layout =     [[sg.TabGroup(tab_group_layout, enable_events=True, key=TAB_GRUPO)],
                             [sg.Column(back_col),
                             sg.Push(),
                             sg.Column(tipo_res_col),
                             sg.Push(),
                             sg.Column(acciones_sim_col)]]
+    
     return static_sim_layout
 
 
-def random(event):
-    print("random")
-    print(event.char)
-    return event.char
-
 def VistaSimEstatica():
     global window
-    # window = sg.Window("FV CAR MODEL", layout=StaticSimLayout(), finalize=True, background_color="DarkSlateGray3")
-    window = sg.Window("FV CAR MODEL", layout=StaticSimLayout(), finalize=True)
+    window = sg.Window("FV CAR MODEL", layout=StaticSimLayout(), finalize=True, 
+                       grab_anywhere_using_control=True, resizable=True)
     
     #añadir eventos
     window[RESOLUCION_INPUT].bind('<Key>', "")
@@ -274,6 +337,9 @@ def VistaSimEstatica():
     window[DIM_Y_INPUT].bind('<Key>', "")
     window[CURVATURA_INPUT].bind('<Key>', "")
     window[ORIENTACION_INPUT].bind('<Key>', "")
+    window[LIM_SUP_INPUT].bind('<Key>', "")
+    window[LIM_INF_INPUT].bind('<Key>', "")
+    window[RANGO_INPUT].bind('<Key>', "")
 
 #################
 #
@@ -282,6 +348,7 @@ def VistaSimEstatica():
 #################
 
 def mainloop():
+    global tipo_datos_radiacion
     tipo_datos_radiacion = "clear sky"
     global datastaticsim
     while True:
@@ -324,11 +391,23 @@ def mainloop():
             result_int = acceptInput(str(values[DIM_X_INPUT]))
             window[DIM_X_INPUT].update(result_int)
 
+        elif event == LIM_SUP_INPUT:
+            result_int = acceptInput(str(values[LIM_SUP_INPUT]))
+            window[LIM_SUP_INPUT].update(result_int)
+
+        elif event == LIM_INF_INPUT:
+            result_int = acceptInput(str(values[LIM_INF_INPUT]))
+            window[LIM_INF_INPUT].update(result_int)
+
+        elif event == RANGO_INPUT:
+            result_int = acceptInput(str(values[RANGO_INPUT]))
+            window[RANGO_INPUT].update(result_int)
+
         #INPUTs Fecha y Lugar
         elif event == (LATITUD_INPUT + RIGHT_CLICK):
             global latitud_value
             window[LATITUD_INPUT].update(str(latitud_value))
-            value = sg.popup_get_text('Enter slider value', keep_on_top=True, no_titlebar=True, size=(10,2))
+            value = sg.popup_get_text('Enter slider value', keep_on_top=True, no_titlebar=True, grab_anywhere=True, size=(10,2))
             if (vc.ValueChecker().isStringFloat(value)):
                 window[LATITUD_INPUT].update(str(value))
                 latitud_value = value
@@ -339,7 +418,7 @@ def mainloop():
             global longitud_value
             window[LONGITUD_INPUT].update(str(longitud_value))
             # value=  popupInValue('', 'Enter slider value')
-            value = sg.popup_get_text('Enter slider value', keep_on_top=True, no_titlebar=True, size=(10,2))
+            value = sg.popup_get_text('Enter slider value', keep_on_top=True, no_titlebar=True, grab_anywhere=True, size=(10,2))
             if (vc.ValueChecker().isStringFloat(value)):
                 window[LONGITUD_INPUT].update(str(value))
                 longitud_value = value
@@ -369,15 +448,79 @@ def mainloop():
         elif event == GUARDAR_INPUT:
             save_data = checkAllValues(values)
             if save_data:
-                saveStaticSimViewValuesToFile(values)
+                file_to_save = values[GUARDAR_INPUT]
+                saveStaticSimViewValuesToFile(values, file_to_save)
         
         elif event == CARGAR_DATOS_INPUT:
-            #esto debería abrir un browser
-            new_data = reader.readData("D:\GUI FV CAR\model1\GUI-FV-CAR\src\\test.yaml")
+            new_data = reader.readData(values[CARGAR_DATOS_INPUT])
             datastaticsim.FromFileToData(new_data)
             setStaticSimViewValuesFromFile(datastaticsim.GetValues())
 
+        elif event == SIMULAR_INPUT:
+            save_data = checkAllValues(values)
+            if save_data:
+                lanzarSimulacion(values)
+                if result_data.status == "OK":
+                    mostrarResultados()
+                else:
+                    sg.popup_error("Fallo en la simulación: archivo vacío")
+
+        elif event == RESULTADO_INPUT:
+            updateResultTab(values[VALOR_PARAMETRICA], values[RESULTADO_INPUT])
+
+        elif event == VALOR_PARAMETRICA:
+            updateResultTab(values[VALOR_PARAMETRICA], values[RESULTADO_INPUT])
+
+
     changeState(trigger)
+
+def generateListImagesResult(images):
+    ret = []
+    for image in images:
+        element = {}
+        filename = os.path.basename(image)
+        print(filename)
+        if 'irr_momento_' in filename:
+            element[RECURSO_SOLAR_TEXT] = image
+        elif 'iv_momento_' in filename:
+            element[CURVAS_IV_TEXT] = image
+        elif 'power_dia_' in filename:
+            element[GEN_ELECTRICA_TEXT] = image
+        
+        ret.append(element)
+
+    return ret
+
+def lanzarSimulacion(values):
+    file_to_save = "dataStaticSim_tmp.yaml"
+    saveStaticSimViewValuesToFile(values, file_to_save)
+
+    args = [file_to_save]
+    subprocess.run([ANACONDA_EXECUTE, MODEL_SCRIPT] + args)
+    
+    if os.path.isfile(RESULT_FILE):
+        new_data = reader.readData(RESULT_FILE)
+        result_data.FromFileToData(new_data)
+
+    else:
+        sg.popup_error("Fallo en la simulación: no se generó el archivo de resultados")
+
+def mostrarResultados():
+    list_keys = []
+    for key, value in result_data.azimut.items():
+        list_keys.append(key)
+
+    print(window[RESULTADO_INPUT])
+    if len(list_keys) > 0:
+        window[VALOR_PARAMETRICA].update(values=list_keys, value=list_keys[0])
+        updateResultTab(list_keys[0], RECURSO_SOLAR_TEXT)
+
+    window[TAB_RESULTADOS].update(visible=True)
+    window[TAB_RESULTADOS].select()
+    
+
+
+
 
 def generateDateIsoformat(fecha, hora, min):
     """""
@@ -432,11 +575,16 @@ def setStaticSimViewValuesFromFile(data):
     window[NUM_CEL_Y_INPUT].update(data["num_cels_y"])
     con_index = vc.ValueChecker().findValueInList(lista_conexiones, data["conexion"])
     window[CONEXION_INPUT].update(set_to_index=con_index)
-    global tipo_datos_radiacion
     tipo_datos_radiacion = data["tipo_datos_radiacion"]
     updateTipoDatosRadiacion(tipo_datos_radiacion=tipo_datos_radiacion)
+    par_index = vc.ValueChecker().findValueInList(lista_parametric_vars, data["var_parametrica"])
+    window[PARAMETRIC_VAR_INPUT].update(set_to_index=par_index)
+    window[LIM_INF_INPUT].update(data["lim_inferior"])
+    window[LIM_SUP_INPUT].update(data["lim_superior"])
+    window[RANGO_INPUT].update(data["rango"])
+    
 
-def saveStaticSimViewValuesToFile(data):
+def saveStaticSimViewValuesToFile(data, file_to_save):
     datastaticsim = dss.DataStaticSim(resolucion=data[RESOLUCION_INPUT],
         fecha_inicio=fecha_inicio_timestamp,
         fecha_fin=fecha_fin_timestamp,
@@ -452,9 +600,13 @@ def saveStaticSimViewValuesToFile(data):
         num_cels_y=data[NUM_CEL_Y_INPUT],
         conexion=data[CONEXION_INPUT][0],
         tipo_datos_radiacion=tipo_datos_radiacion,
-        datos_radiacion="")
+        datos_radiacion="",
+        var_parametrica=data[PARAMETRIC_VAR_INPUT],
+        lim_sup=data[LIM_SUP_INPUT],
+        lim_inf=data[LIM_INF_INPUT],
+        rango=data[RANGO_INPUT])
 
-    writer.writeData("D:\GUI FV CAR\model1\GUI-FV-CAR\src\static_sim_data.yaml", datastaticsim.FromDataToFile())
+    writer.writeData(file_to_save, datastaticsim.FromDataToFile())
 
 #Máquina Estados
 
@@ -511,6 +663,21 @@ def updateTipoDatosRadiacion(tipo_datos_radiacion):
         window[DATA_METEO_INPUT].update(disabled=False)
         window[DATA_METEO_BROWSER].update(disabled=False)
 
+def updateResultTab(valor_azimut, select_grafica):
+    imagen = ""
+    if valor_azimut in result_data.azimut:
+        if select_grafica in result_data.azimut[valor_azimut]:
+            imagen = result_data.azimut[valor_azimut][select_grafica]
+    updateResultImage(imagen)
+
+def updateResultImage(image):
+    print(image)
+    if os.path.isfile(image):
+        window[RESULT_IMAGE].update(image)
+    else:
+        sg.popup_error(f"ERROR: imagen {image} no existe")
+
+
 def checkAllValues(values):
     ret = True
     
@@ -542,6 +709,7 @@ def acceptInput(value):
 if __name__ == "__main__":
     print("MAIN")
     datastaticsim = dss.DataStaticSim()
+    result_data = rd.ResultData()
     writer = YAMLWriter()
     reader = YAMLReader()
     state = EstadosVistas.Init

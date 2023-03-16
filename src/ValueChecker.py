@@ -102,13 +102,3 @@ class ValueChecker:
 
     def isNumber(self, val):
         return isinstance(val, int)
-
-    def isLastElemNumber(self, val):
-        if isinstance(val, str):
-            last = self.getLastElem(val)
-            print("last")
-    
-    def getLastElem(self, val):
-        if str is not None:
-            matches = re.split("", val)
-            print(matches)

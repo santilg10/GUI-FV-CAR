@@ -36,10 +36,31 @@ TMY_INPUT               = "-TMY_INPUT-"
 DATA_METEO_INPUT        = "-DATA_METEO_INPUT-"
 DATA_METEO_BROWSER      = "-DATA_METEO_BROWSER-"
 
+#datos parametrización
+PARAMETRIC_VAR_INPUT    = "-PARAMETRIC_VAR_INPUT-"
+LIM_SUP_INPUT           = "-LIM_SUP_INPUT-"
+LIM_INF_INPUT           = "-LIM_INF_INPUT-"
+RANGO_INPUT             = "-RANGO_INPUT-"
+
 #tipos resultados
 RECURSO_SOLAR_INPUT     = "-RECURSO_SOLAR_INPUT-"
 CURVAS_IV_INPUT         = "-CURVAS_IV_INPUT-"
 GEN_ELECTRICA_INPUT     = "-GEN_ELECTRICA_INPUT-"
+
+#vista resultados
+TAB_DATOS               = "-TAB_DATOS-"
+TAB_RESULTADOS          = "-TAB_RESULTADOS-"
+TAB_GRUPO               = "-TAB_GRUPO-"
+FRAME_RESULTADOS        = "-FRAME_RESULTADOS-"
+VALOR_PARAMETRICA       = "-VALOR_PARAMETRICA-"
+RESULTADO_INPUT         = "-RESULTADO-INPUT-"
+RECURSO_SOLAR_IMAGE     = "-RECURSO_SOLAR_IMAGE-"
+CURVAS_IV_IMAGE         = "-CURVAS_IV_IMAGE-"
+GEN_ELECTRICA_IMAGE     = "-GEN_ELECTRICA_IMAGE-"
+RECURSO_SOLAR_TEXT      = "Recurso solar"
+CURVAS_IV_TEXT          = "Curva I-V"
+GEN_ELECTRICA_TEXT      = "Generacion electrica"
+RESULT_IMAGE            = "-RESULT_IMAGE-"
 
 #elementos auxiliares
 GUARDAR_INPUT           = "-GUARDAR_INPUT-"
@@ -50,3 +71,9 @@ BACK                    = "-BACK-"
 POPUP_INPUT             = "-POPUP_INPUT-"
 RADIATION_TYPE_GROUP    = "-RADIATION_TYPE_GROUP"
 INIT_SIMULATION         = "-INIT_SIMULATION-"
+
+
+ANACONDA_EXECUTE        = "D:/Anaconda/python.exe"
+MODEL_SCRIPT            = "D:/GUI FV CAR/model1/GUI-FV-CAR/src/ficheros_datos_accede.py"
+IMAGES_PATH             = "D:/GUI FV CAR/model1/GUI-FV-CAR/data/images/"
+RESULT_FILE             = "result_file.yaml"
