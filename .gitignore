@@ -1,0 +1,6 @@
+connections/
+sessions/
+tests/
+simulator_model/
+data/
+/src/_pycache_/
