@@ -241,8 +241,6 @@ def RadiacionLayout():
 #################
 
 def ParametricLayout():
-    # todo: en vez de límite inf - límite sup - rango -> listbox con selección múltiple con los posibles valores
-    # todo: implica cambiar también DataStaticSim y fichero_datos_accede
     parametric_var_layout = [sg.vtop(sg.Text("Variable parametrizable", size=param_var_size)), 
                              sg.Combo(values=parametric_keys, default_value=parametric_keys[0], 
                                       size=(min_width, listbox_size),readonly=True, key=PARAMETRIC_VAR_INPUT, enable_events=True)]
@@ -299,14 +297,10 @@ def FrameSessionData():
                            sg.FileBrowse("Cargar config", target=CARGAR_CONFIG_INPUT, key=CONFIG_FILE_BROWSER, file_types=(("YAML files", "*.yaml"),)),
                            sg.Text("", auto_size_text=True, key=CONFIG_FILE_TEXT)]
     
-    #botón cargar config ya está
-    
     # todo: botón cargar sesión previa 
-    # todo: generar estructura de carpetas con botón SIMULAR
     load_session_layout = [sg.Input(key=CARGAR_SESION_INPUT, enable_events=True, visible=False), #solo para actualizar automáticamente
-                            #DirBrowse
                            sg.Push(), 
-                           sg.FileBrowse(button_text="Cargar sesión previa", target=CARGAR_SESION_INPUT, size=button_size, file_types=(("YAML files", "*.yaml"),)),
+                           sg.FolderBrowse(button_text="Cargar sesión previa", target=CARGAR_SESION_INPUT, size=button_size),
                            sg.Push()]
     simular_layout      = [sg.Push(), sg.Button("SIMULAR", size=button_size, key=SIMULAR_INPUT, disabled=True), sg.Push()]
 
@@ -401,11 +395,7 @@ def mainloop():
             break
 
         elif event == CARGAR_CONFIG_INPUT:
-            new_data = reader.readData(values[CARGAR_CONFIG_INPUT])
-            datastaticsim.FromFileToData(new_data)
-            setStaticSimViewValuesFromFile(datastaticsim.GetValues())
-            window[CONFIG_FILE_TEXT].update(values[CARGAR_CONFIG_INPUT])
-            window[SIMULAR_INPUT].update(disabled=False)
+            cargarConfig(values[CARGAR_CONFIG_INPUT])
 
         elif event == GENERAR_CONFIG:
             save_data = checkAllValues(values)
@@ -414,6 +404,9 @@ def mainloop():
                 saveStaticSimViewValuesToFile(values, file_to_save)
                 window[CONFIG_FILE_TEXT].update(file_to_save)
                 window[SIMULAR_INPUT].update(disabled=False)
+
+        elif event == CARGAR_SESION_INPUT:
+            cargarSesionPrevia(values[CARGAR_SESION_INPUT])
 
         elif event == NUM_CEL_Y_INPUT:
             result_int = acceptInput(str(values[NUM_CEL_Y_INPUT]))
@@ -507,6 +500,32 @@ def mainloop():
 
 
     changeState(trigger)
+
+
+def cargarConfig(config_name):
+    new_data = reader.readData(config_name)
+    datastaticsim.FromFileToData(new_data)
+    setStaticSimViewValuesFromFile(datastaticsim.GetValues())
+    window[CONFIG_FILE_TEXT].update(config_name)
+    window[SIMULAR_INPUT].update(disabled=False)
+
+def cargarSesionPrevia(sesion_previa):
+    name = os.path.basename(sesion_previa)
+    print(name)
+    window[NOMBRE_INPUT].update(name)
+    config_name = sesion_previa + "/config_static_sim_data.yaml"
+    if os.path.isfile(config_name):
+        cargarConfig(config_name)
+    else:
+        sg.popup_error(f"ERROR: No existe el fichero {config_name}. Cargarlo manualmente")
+
+    result_file = sesion_previa + "/result/" + RESULT_FILE
+    if os.path.isfile(result_file):
+        new_data = reader.readData(result_file)
+        result_data.FromFileToData(new_data)
+        mostrarResultados()
+    
+
 
 def generarCarpetaSesion(nombre, file_to_save):
     new_dir_name = SESSIONS_PATH + f"{nombre}/"
