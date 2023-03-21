@@ -2,6 +2,15 @@
 STATIC_SIM_SELECTED     = "-STATIC_SIM_SELECTED-"
 DINAMIC_SIM_SELECTED    = "-DINAMIC_SIM_SELECTED-"
 
+#datos sesión
+NOMBRE_INPUT            = "-NOMBRE_INPUT-"
+DESCRIPCION_INPUT       = "-DESCRIPCION_INPUT-"
+CONFIG_INPUT            = "-CONFIG_INPUT-"
+CONFIG_FILE_TEXT        = "-CONFIG_FILE_TEXT-"
+CONFIG_FILE_BROWSER     = "-CONFIG_FILE_BROWSER-"
+CARGAR_SESION_INPUT     = "-CARGAR_SESION_INPUT-"
+CARGAR_CONFIG_INPUT     = "-CARGAR_CONFIG_INPUT-"
+
 #fecha y lugar
 RESOLUCION_INPUT        = "-RESOLUCION_INPUT-"
 FECHA_INICIO            = "-FECHA_INICIO-"
@@ -17,8 +26,8 @@ LATITUD_INPUT           = "-LATITUD_INPUT-"
 LONGITUD_INPUT          = "-LONGITUD_INPUT-"
 
 #geometría
-DIM_X_INPUT                 = "-DIM_X_INPUT-"
-DIM_Y_INPUT                 = "-DIM_Y_INPUT-"
+DIM_X_INPUT             = "-DIM_X_INPUT-"
+DIM_Y_INPUT             = "-DIM_Y_INPUT-"
 CURVATURA_INPUT         = "-CURVATURA_INPUT-"
 ORIENTACION_INPUT       = "-ORIENTACION_INPUT-"
 
@@ -41,6 +50,7 @@ PARAMETRIC_VAR_INPUT    = "-PARAMETRIC_VAR_INPUT-"
 LIM_SUP_INPUT           = "-LIM_SUP_INPUT-"
 LIM_INF_INPUT           = "-LIM_INF_INPUT-"
 RANGO_INPUT             = "-RANGO_INPUT-"
+VALUES_PARAMETRIC_INPUT = "-VALUES_PARAMETRIC_INPUT-"
 
 #tipos resultados
 RECURSO_SOLAR_INPUT     = "-RECURSO_SOLAR_INPUT-"
@@ -48,7 +58,8 @@ CURVAS_IV_INPUT         = "-CURVAS_IV_INPUT-"
 GEN_ELECTRICA_INPUT     = "-GEN_ELECTRICA_INPUT-"
 
 #vista resultados
-TAB_DATOS               = "-TAB_DATOS-"
+TAB_SESION              = "-TAB_SESION-"
+TAB_CONFIG              = "-TAB_CONFIG-"
 TAB_RESULTADOS          = "-TAB_RESULTADOS-"
 TAB_GRUPO               = "-TAB_GRUPO-"
 FRAME_RESULTADOS        = "-FRAME_RESULTADOS-"
@@ -57,6 +68,7 @@ RESULTADO_INPUT         = "-RESULTADO-INPUT-"
 RECURSO_SOLAR_IMAGE     = "-RECURSO_SOLAR_IMAGE-"
 CURVAS_IV_IMAGE         = "-CURVAS_IV_IMAGE-"
 GEN_ELECTRICA_IMAGE     = "-GEN_ELECTRICA_IMAGE-"
+PARAM_VAR_TEXT          = "-PARAM_VAR_TEXT-"
 RECURSO_SOLAR_TEXT      = "Recurso solar"
 CURVAS_IV_TEXT          = "Curva I-V"
 GEN_ELECTRICA_TEXT      = "Generacion electrica"
@@ -71,9 +83,11 @@ BACK                    = "-BACK-"
 POPUP_INPUT             = "-POPUP_INPUT-"
 RADIATION_TYPE_GROUP    = "-RADIATION_TYPE_GROUP"
 INIT_SIMULATION         = "-INIT_SIMULATION-"
-
+GENERAR_CONFIG          = "-GENERAR_CONFIG-"
 
 ANACONDA_EXECUTE        = "D:/Anaconda/python.exe"
 MODEL_SCRIPT            = "D:/GUI FV CAR/model1/GUI-FV-CAR/src/ficheros_datos_accede.py"
 IMAGES_PATH             = "D:/GUI FV CAR/model1/GUI-FV-CAR/data/images/"
+SESSIONS_PATH           = "D:/GUI FV CAR/model1/GUI-FV-CAR/sessions/"
+CONNECTIONS_DEFAULT_PATH= "D:/GUI FV CAR/model1/GUI-FV-CAR/data/connections/"
 RESULT_FILE             = "result_file.yaml"
