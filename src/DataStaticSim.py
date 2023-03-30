@@ -8,7 +8,7 @@ class DataStaticSim():
     """""
     def __init__(self, resolucion=0, fecha_inicio=0, fecha_fin=0, lugar="", latitud=0, longitud=0,
             x=1, y=1, curvatura=0, orientacion=0, tecnologia="", num_cels_x=1, num_cels_y=1, conexion="", tipo_datos_radiacion="",
-            datos_radiacion="", var_parametrica="", lim_sup=0, lim_inf=0, rango=0):
+            datos_radiacion="", var_parametrica="", valores_parametricos=[], azimut=90):
         print("DataStaticSim")
 
         self.data = {
@@ -29,12 +29,8 @@ class DataStaticSim():
             "tipo_datos_radiacion" : tipo_datos_radiacion,
             "datos_radiacion" : datos_radiacion,
             "var_parametrica" : var_parametrica,
-            # otra opción -> variable "valores_var_parametrica" como una lista
-            # de los posibles valores que puede tomar la variable
-            # así es más fácil en el otro lado saber con qué valores simular
-            "lim_inferior" : lim_inf,
-            "lim_superior" : lim_sup,
-            "rango" : rango
+            "valores_parametrica" : valores_parametricos,
+            "azimut" : azimut
         }
 
     def SetValue(self, data, val):

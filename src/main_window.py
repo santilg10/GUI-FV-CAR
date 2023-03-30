@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import datetime
 import PySimpleGUI as sg
@@ -42,9 +43,8 @@ param_var_size = (20, 1)
 
 listbox_size = 5
 
-#todo: hacer esto configurable
+#   LISTAS AUXILIARES
 lista_tecnologias = ("DSC", "CIS", "CdTe", "a-Si", "TF-Si")
-# lista_conexiones = ("Paralelo", "Serie", "Combinada")
 lista_conexiones = ("hmSbxPx", "hmSbxPy", 
                     "hmSxPbx", "hmSxPby", 
                     "hmSxPx", "hmSxPy", 
@@ -52,7 +52,19 @@ lista_conexiones = ("hmSbxPx", "hmSbxPy",
                     "hmSyPx", "hmSyPy", 
                     "SbSx", "SSbx", "SSby")
 lista_tmy = ("DB1", "DB2", "DB3")
-lista_parametric_vars = ("azimut", "conexión")
+lista_azimuts = []
+for i in range(91):
+    if (i % 5) == 0:
+        lista_azimuts.append(i)
+
+dict_parametric_vars = {"azimut" : lista_azimuts,
+                        "connection" : lista_conexiones}
+parametric_keys = []
+for key in dict_parametric_vars:
+    parametric_keys.append(key)
+
+global dict_results
+dict_results = {}
 
 latitud_value = 0
 longitud_value = 0
@@ -230,41 +242,79 @@ def RadiacionLayout():
 
 def ParametricLayout():
     parametric_var_layout = [sg.vtop(sg.Text("Variable parametrizable", size=param_var_size)), 
-                            #todo: en vez de listboz -> DropDown
-                            #  sg.Listbox(values=lista_parametric_vars, default_values=lista_parametric_vars[0], size=(min_width, listbox_size), 
-                            #     no_scrollbar=True, select_mode=sg.LISTBOX_SELECT_MODE_SINGLE, key=PARAMETRIC_VAR_INPUT)]
-                             sg.Combo(values=lista_parametric_vars, default_value=lista_parametric_vars[0], size=(min_width, listbox_size),readonly=True, key=PARAMETRIC_VAR_INPUT)]
-    lim_inf_layout =        [sg.Text("Límite inferior", size=param_var_size), sg.Spin(values=resolution_values, size=min_size, key=LIM_INF_INPUT)]
-    lim_sup_layout =        [sg.Text("Límite superior", size=param_var_size), sg.Spin(values=resolution_values, size=min_size, key=LIM_SUP_INPUT)]
-    rango_layout =          [sg.Text("Rango", size=param_var_size), sg.Spin(values=resolution_values, size=min_size, key=RANGO_INPUT)]
+                             sg.Combo(values=parametric_keys, default_value=parametric_keys[0], 
+                                      size=(min_width, listbox_size),readonly=True, key=PARAMETRIC_VAR_INPUT, enable_events=True)]
+    valores_layout =        [sg.vtop(sg.Text("Valores", size=param_var_size)),
+                             sg.Listbox(values=lista_azimuts, size=(min_width, listbox_size), select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE, 
+                                        enable_events=True, key=VALUES_PARAMETRIC_INPUT)]
 
     layout_parametric =     [parametric_var_layout,
-                             lim_inf_layout,
-                             lim_sup_layout,
-                             rango_layout]
+                            #  lim_inf_layout,
+                            #  lim_sup_layout,
+                            #  rango_layout,
+                             valores_layout]
 
     return layout_parametric
 
 
 #################
 #
-#   VISTA DATOS STATIC SIM
+#   VISTA CONFIG STATIC SIM 
 #
 #################
 
-def FrameStaticSimData():
+def FrameStaticSimConfig():
     frame_fecha_lugar =         sg.Frame("Fecha y lugar", FechaYLugarLayout())
     # frame_fecha_lugar =         sg.Frame("", FechaYLugarLayout(), background_color="DarkOliveGreen3")
     frame_geometria =           sg.Frame("Geometría", GeometriaLayout(), expand_x=True, expand_y=True)
     frame_configuracion_cel =   sg.Frame("Configuración célula", ConfigCelLayout(), expand_x=True, expand_y=True)
     frame_radiacion =           sg.Frame("Datos radiación", layout=RadiacionLayout(), expand_x=True, expand_y=True)
     frame_parametrica =         sg.Frame("Datos paramétricos", layout=ParametricLayout(), expand_x=True, expand_y=True)
+    generar_config_layout =     [sg.Push(), sg.Button("Generar config", size=(20,2), key=GENERAR_CONFIG), sg.Push()]
     static_sim_data_layout =    [[frame_fecha_lugar, frame_configuracion_cel, frame_geometria],
-                                [frame_radiacion, frame_parametrica]]
-    frame_static_sim_data =     sg.Frame("", layout=static_sim_data_layout)
+                                 [frame_radiacion, frame_parametrica],
+                                 generar_config_layout]
+    frame_static_sim_config =   sg.Frame("", layout=static_sim_data_layout)
     global frame_size
-    frame_size = frame_static_sim_data.Size
-    return frame_static_sim_data
+    frame_size = frame_static_sim_config.Size
+    return frame_static_sim_config
+
+
+#################
+#
+#   VISTA DATOS SESIÓN
+#
+#################
+
+text_size = (20,2)
+button_size = (30, 2)
+
+def FrameSessionData():
+    nombre_layout       = [sg.T("Nombre", size=text_size), sg.Input(key=NOMBRE_INPUT, size=text_size)]
+    descripcion_layout  = [sg.vtop(sg.T("Descripción", size=text_size)), sg.Multiline(key=DESCRIPCION_INPUT, size=(50, 5))]
+    config_file_layout  = [sg.T("Archivo configuración", size=text_size), 
+                           sg.Input(key=CARGAR_CONFIG_INPUT, enable_events=True, visible=False),
+                           sg.FileBrowse("Cargar config", target=CARGAR_CONFIG_INPUT, key=CONFIG_FILE_BROWSER, file_types=(("YAML files", "*.yaml"),)),
+                           sg.Text("", auto_size_text=True, key=CONFIG_FILE_TEXT)]
+    
+    # todo: botón cargar sesión previa 
+    load_session_layout = [sg.Input(key=CARGAR_SESION_INPUT, enable_events=True, visible=False), #solo para actualizar automáticamente
+                           sg.Push(), 
+                           sg.FolderBrowse(button_text="Cargar sesión previa", target=CARGAR_SESION_INPUT, size=button_size),
+                           sg.Push()]
+    simular_layout      = [sg.Push(), sg.Button("SIMULAR", size=button_size, key=SIMULAR_INPUT, disabled=True), sg.Push()]
+
+    session_data_layout = [nombre_layout,
+                           descripcion_layout,
+                           config_file_layout,
+                           [sg.VPush()],
+                           load_session_layout,
+                           [sg.VPush()],
+                           simular_layout,
+                           [sg.VPush()],]
+    
+    frame_session_data = sg.Frame("", session_data_layout, expand_x=True, expand_y=True)
+    return frame_session_data
 
 
 #################
@@ -277,11 +327,8 @@ def FrameResults():
     test_image = IMAGES_PATH + "test_image.png"
     list_results = [RECURSO_SOLAR_TEXT, CURVAS_IV_TEXT, GEN_ELECTRICA_TEXT]
     result_layout = [[sg.Text("Variable paramétrica", size=param_var_size),
-                      sg.Text("azimuth"),
-                      sg.Combo(values=button_menu_hour_list, default_value=button_menu_hour_list[0], readonly=True, enable_events=True, key=VALOR_PARAMETRICA)],
-                    #  [sg.Text("Recurso solar", size=param_var_size), sg.Image(test_image, key=RECURSO_SOLAR_IMAGE)],
-                    #  [sg.Text("Curva I-V", size=param_var_size), sg.Image(test_image, key=CURVAS_IV_IMAGE)],
-                    #  [sg.Text("Generación eléctrica", size=param_var_size), sg.Image(test_image, GEN_ELECTRICA_IMAGE)]]
+                      sg.Text("", auto_size_text=True, key=PARAM_VAR_TEXT),
+                      sg.Combo(values=button_menu_hour_list, default_value=button_menu_hour_list[0], readonly=True, enable_events=True, key=VALOR_PARAMETRICA, size=param_var_size)],
                     [sg.Combo(values=list_results, default_value=list_results[0], size=param_var_size, readonly=True, enable_events=True, key=RESULTADO_INPUT),
                      sg.Image(test_image, key=RESULT_IMAGE)]]
     frame_results = sg.Frame("Resultados", result_layout, size=frame_size, key=FRAME_RESULTADOS)
@@ -296,28 +343,15 @@ def FrameResults():
 def StaticSimLayout():
     back_col =              [[sg.B("Back", key=BACK)]]
 
-    tipo_res_col =          [[sg.T("Tipo Simulación", size=geom_min_size)],
-                            [sg.Checkbox("Recurso solar", key=RECURSO_SOLAR_INPUT)],
-                            [sg.Checkbox("Curvas IV", key=CURVAS_IV_INPUT)],
-                            [sg.Checkbox("Generación Eléctrica", key=GEN_ELECTRICA_INPUT)]]
-
-    acciones_sim_col =      [[sg.Input(key=GUARDAR_INPUT, enable_events=True, visible=False)], #solo para actualizar automáticamente
-                            [sg.FileSaveAs(button_text="Guardar", target=GUARDAR_INPUT, file_types=(("YAML files", "*.yaml"),))],
-                            [sg.Input(key=CARGAR_DATOS_INPUT, enable_events=True, visible=False)], #solo para actualizar automáticamente
-                            [sg.FileBrowse(button_text="Cargar Datos", target=CARGAR_DATOS_INPUT, file_types=(("YAML files", "*.yaml"),))],
-                            [sg.B("Simular", size=min_size, key=SIMULAR_INPUT)]]
-
-    tab_data_layout =       [[FrameStaticSimData()]]
+    tab_sesion_layout =     [[FrameSessionData()]]
+    tab_data_layout =       [[FrameStaticSimConfig()]]
     tab_results_layout =    [[FrameResults()]]
-    tab_group_layout =      [[sg.Tab("Inputs", tab_data_layout, key=TAB_DATOS),
-                              sg.Tab("Results", tab_results_layout, key=TAB_RESULTADOS, visible=False)]]
+    tab_group_layout =      [[sg.Tab("Sesión", tab_sesion_layout, key=TAB_SESION),
+                             sg.Tab("Configuración", tab_data_layout, key=TAB_CONFIG),
+                             sg.Tab("Results", tab_results_layout, key=TAB_RESULTADOS, visible=False)]]
     
     static_sim_layout =     [[sg.TabGroup(tab_group_layout, enable_events=True, key=TAB_GRUPO)],
-                            [sg.Column(back_col),
-                            sg.Push(),
-                            sg.Column(tipo_res_col),
-                            sg.Push(),
-                            sg.Column(acciones_sim_col)]]
+                             [sg.Column(back_col),]]
     
     return static_sim_layout
 
@@ -337,9 +371,6 @@ def VistaSimEstatica():
     window[DIM_Y_INPUT].bind('<Key>', "")
     window[CURVATURA_INPUT].bind('<Key>', "")
     window[ORIENTACION_INPUT].bind('<Key>', "")
-    window[LIM_SUP_INPUT].bind('<Key>', "")
-    window[LIM_INF_INPUT].bind('<Key>', "")
-    window[RANGO_INPUT].bind('<Key>', "")
 
 #################
 #
@@ -362,6 +393,20 @@ def mainloop():
         elif event == STATIC_SIM_SELECTED:
             trigger = STATIC_SIM_SELECTED
             break
+
+        elif event == CARGAR_CONFIG_INPUT:
+            cargarConfig(values[CARGAR_CONFIG_INPUT])
+
+        elif event == GENERAR_CONFIG:
+            save_data = checkAllValues(values)
+            if save_data:
+                file_to_save = CONFIG_FILE_NAME
+                saveStaticSimViewValuesToFile(values, file_to_save)
+                window[CONFIG_FILE_TEXT].update(file_to_save)
+                window[SIMULAR_INPUT].update(disabled=False)
+
+        elif event == CARGAR_SESION_INPUT:
+            cargarSesionPrevia(values[CARGAR_SESION_INPUT])
 
         elif event == NUM_CEL_Y_INPUT:
             result_int = acceptInput(str(values[NUM_CEL_Y_INPUT]))
@@ -391,17 +436,9 @@ def mainloop():
             result_int = acceptInput(str(values[DIM_X_INPUT]))
             window[DIM_X_INPUT].update(result_int)
 
-        elif event == LIM_SUP_INPUT:
-            result_int = acceptInput(str(values[LIM_SUP_INPUT]))
-            window[LIM_SUP_INPUT].update(result_int)
-
-        elif event == LIM_INF_INPUT:
-            result_int = acceptInput(str(values[LIM_INF_INPUT]))
-            window[LIM_INF_INPUT].update(result_int)
-
-        elif event == RANGO_INPUT:
-            result_int = acceptInput(str(values[RANGO_INPUT]))
-            window[RANGO_INPUT].update(result_int)
+        elif event == PARAMETRIC_VAR_INPUT:
+            if values[PARAMETRIC_VAR_INPUT] in dict_parametric_vars:
+                window[VALUES_PARAMETRIC_INPUT].update(dict_parametric_vars[values[PARAMETRIC_VAR_INPUT]])
 
         #INPUTs Fecha y Lugar
         elif event == (LATITUD_INPUT + RIGHT_CLICK):
@@ -445,19 +482,8 @@ def mainloop():
             trigger = BACK
             break
         
-        elif event == GUARDAR_INPUT:
-            save_data = checkAllValues(values)
-            if save_data:
-                file_to_save = values[GUARDAR_INPUT]
-                saveStaticSimViewValuesToFile(values, file_to_save)
-        
-        elif event == CARGAR_DATOS_INPUT:
-            new_data = reader.readData(values[CARGAR_DATOS_INPUT])
-            datastaticsim.FromFileToData(new_data)
-            setStaticSimViewValuesFromFile(datastaticsim.GetValues())
-
         elif event == SIMULAR_INPUT:
-            save_data = checkAllValues(values)
+            save_data = checkSession(values)
             if save_data:
                 lanzarSimulacion(values)
                 if result_data.status == "OK":
@@ -465,6 +491,7 @@ def mainloop():
                 else:
                     sg.popup_error("Fallo en la simulación: archivo vacío")
 
+        #INPUTs Vista Resultados
         elif event == RESULTADO_INPUT:
             updateResultTab(values[VALOR_PARAMETRICA], values[RESULTADO_INPUT])
 
@@ -474,52 +501,83 @@ def mainloop():
 
     changeState(trigger)
 
-def generateListImagesResult(images):
-    ret = []
-    for image in images:
-        element = {}
-        filename = os.path.basename(image)
-        print(filename)
-        if 'irr_momento_' in filename:
-            element[RECURSO_SOLAR_TEXT] = image
-        elif 'iv_momento_' in filename:
-            element[CURVAS_IV_TEXT] = image
-        elif 'power_dia_' in filename:
-            element[GEN_ELECTRICA_TEXT] = image
-        
-        ret.append(element)
 
-    return ret
+def cargarConfig(config_name):
+    new_data = reader.readData(config_name)
+    datastaticsim.FromFileToData(new_data)
+    setStaticSimViewValuesFromFile(datastaticsim.GetValues())
+    window[CONFIG_FILE_TEXT].update(config_name)
+    window[SIMULAR_INPUT].update(disabled=False)
+
+def cargarSesionPrevia(sesion_previa):
+    name = os.path.basename(sesion_previa)
+    print(name)
+    window[NOMBRE_INPUT].update(name)
+    config_name = sesion_previa + "/config_static_sim_data.yaml"
+    if os.path.isfile(config_name):
+        cargarConfig(config_name)
+    else:
+        sg.popup_error(f"ERROR: No existe el fichero {config_name}. Cargarlo manualmente")
+
+    result_file = sesion_previa + "/result/" + RESULT_FILE
+    if os.path.isfile(result_file):
+        new_data = reader.readData(result_file)
+        result_data.FromFileToData(new_data)
+        mostrarResultados()
+    
+
+
+def generarCarpetaSesion(nombre, file_to_save):
+    new_dir_name = SESSIONS_PATH + f"{nombre}/"
+    new_file_name = new_dir_name + CONFIG_FILE_NAME
+
+    if not os.path.isdir(new_dir_name):
+        os.mkdir(new_dir_name)
+        shutil.copy(file_to_save, new_dir_name)
+
+    return new_dir_name
 
 def lanzarSimulacion(values):
-    file_to_save = "dataStaticSim_tmp.yaml"
-    saveStaticSimViewValuesToFile(values, file_to_save)
+    file_to_save = window[CONFIG_FILE_TEXT].get()
 
-    args = [file_to_save]
+    new_dir_name = generarCarpetaSesion(values[NOMBRE_INPUT], file_to_save)
+    args = [file_to_save, new_dir_name]
     subprocess.run([ANACONDA_EXECUTE, MODEL_SCRIPT] + args)
     
-    if os.path.isfile(RESULT_FILE):
-        new_data = reader.readData(RESULT_FILE)
+    result_file = new_dir_name + "result/" + RESULT_FILE
+    if os.path.isfile(result_file):
+        new_data = reader.readData(result_file)
         result_data.FromFileToData(new_data)
 
     else:
         sg.popup_error("Fallo en la simulación: no se generó el archivo de resultados")
 
 def mostrarResultados():
+    parametric_var = result_data.parametric_var
+    global dict_results
+    if parametric_var == "azimut":
+        window[PARAM_VAR_TEXT].update(result_data.parametric_var)
+        dict_results = result_data.azimut
+
+    elif parametric_var == "connection":
+        window[PARAM_VAR_TEXT].update(result_data.parametric_var)
+        dict_results = result_data.connection
+
+    else:
+        sg.popup_error(f"ERROR: variable paramétrica {parametric_var} no contemplada")
+        return
+
     list_keys = []
-    for key, value in result_data.azimut.items():
+    for key, val in dict_results.items():
         list_keys.append(key)
 
-    print(window[RESULTADO_INPUT])
     if len(list_keys) > 0:
         window[VALOR_PARAMETRICA].update(values=list_keys, value=list_keys[0])
-        updateResultTab(list_keys[0], RECURSO_SOLAR_TEXT)
+        valor_previo = window[RESULTADO_INPUT].get()
+        updateResultTab(list_keys[0], valor_previo)
 
     window[TAB_RESULTADOS].update(visible=True)
     window[TAB_RESULTADOS].select()
-    
-
-
 
 
 def generateDateIsoformat(fecha, hora, min):
@@ -531,15 +589,12 @@ def generateDateIsoformat(fecha, hora, min):
     """""
     hora_str = str(hora)
     min_str = str(min)
-    print("generateDateIsoformat::  " + str(hora))
-    print("generateDateIsoformat::  " + str(min))
     if hora < 10:
         hora_str = f'{hora:02d}'
     if min < 10:
         min_str = f'{min:02d}'
     
     dateStr = f"{fecha}T{hora_str}:{min_str}:00"
-    print("generateDateIsoformat::  " + dateStr)
     if vc.ValueChecker().isStringDateIsoformat(dateStr):
         date = datetime.datetime.fromisoformat(dateStr)
         return date.isoformat()
@@ -547,8 +602,7 @@ def generateDateIsoformat(fecha, hora, min):
         return None
 
 def setStaticSimViewValuesFromFile(data):
-    print(data)
-
+    # print(data)
     window[RESOLUCION_INPUT].update(data["resolucion"])
 
     datetimeStart = datetime.datetime.fromisoformat(data["fecha_inicio"])
@@ -577,12 +631,15 @@ def setStaticSimViewValuesFromFile(data):
     window[CONEXION_INPUT].update(set_to_index=con_index)
     tipo_datos_radiacion = data["tipo_datos_radiacion"]
     updateTipoDatosRadiacion(tipo_datos_radiacion=tipo_datos_radiacion)
-    par_index = vc.ValueChecker().findValueInList(lista_parametric_vars, data["var_parametrica"])
-    window[PARAMETRIC_VAR_INPUT].update(set_to_index=par_index)
-    window[LIM_INF_INPUT].update(data["lim_inferior"])
-    window[LIM_SUP_INPUT].update(data["lim_superior"])
-    window[RANGO_INPUT].update(data["rango"])
-    
+
+    var_parametrica = data["var_parametrica"]
+    if var_parametrica in dict_parametric_vars:
+        par_index = vc.ValueChecker().findValueInList(parametric_keys, var_parametrica)
+        window[PARAMETRIC_VAR_INPUT].update(set_to_index=par_index)
+        window[VALUES_PARAMETRIC_INPUT].update(dict_parametric_vars[var_parametrica])
+        window[VALUES_PARAMETRIC_INPUT].set_value(data["valores_parametrica"])
+    else:
+        sg.popup_error(f"ERROR al cargar archivo de configuración: variable paramétrica {var_parametrica} no se reconoce")
 
 def saveStaticSimViewValuesToFile(data, file_to_save):
     datastaticsim = dss.DataStaticSim(resolucion=data[RESOLUCION_INPUT],
@@ -602,9 +659,10 @@ def saveStaticSimViewValuesToFile(data, file_to_save):
         tipo_datos_radiacion=tipo_datos_radiacion,
         datos_radiacion="",
         var_parametrica=data[PARAMETRIC_VAR_INPUT],
-        lim_sup=data[LIM_SUP_INPUT],
-        lim_inf=data[LIM_INF_INPUT],
-        rango=data[RANGO_INPUT])
+        # lim_sup=data[LIM_SUP_INPUT],
+        # lim_inf=data[LIM_INF_INPUT],
+        # rango=data[RANGO_INPUT],
+        valores_parametricos=data[VALUES_PARAMETRIC_INPUT])
 
     writer.writeData(file_to_save, datastaticsim.FromDataToFile())
 
@@ -663,11 +721,11 @@ def updateTipoDatosRadiacion(tipo_datos_radiacion):
         window[DATA_METEO_INPUT].update(disabled=False)
         window[DATA_METEO_BROWSER].update(disabled=False)
 
-def updateResultTab(valor_azimut, select_grafica):
+def updateResultTab(valor_sel, select_grafica):
     imagen = ""
-    if valor_azimut in result_data.azimut:
-        if select_grafica in result_data.azimut[valor_azimut]:
-            imagen = result_data.azimut[valor_azimut][select_grafica]
+    if valor_sel in dict_results:
+        if select_grafica in dict_results[valor_sel]:
+            imagen = dict_results[valor_sel][select_grafica]
     updateResultImage(imagen)
 
 def updateResultImage(image):
@@ -695,6 +753,16 @@ def checkAllValues(values):
     
     return ret
 
+def checkSession(values):
+    ret = True
+    if not values[NOMBRE_INPUT]:
+        ret = False
+        sg.popup_error("ERROR: introducir nombre de la sesión")
+    if checkAllValues(values) == False:
+        ret = False
+    
+    return ret
+
 def acceptInput(value):
     result = ""
     i = 0
@@ -714,6 +782,5 @@ if __name__ == "__main__":
     reader = YAMLReader()
     state = EstadosVistas.Init
     changeState(INIT_SIMULATION)
-
 
 #todo: set data_radiacion
