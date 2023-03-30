@@ -400,7 +400,7 @@ def mainloop():
         elif event == GENERAR_CONFIG:
             save_data = checkAllValues(values)
             if save_data:
-                file_to_save = "config_static_sim_data.yaml"
+                file_to_save = CONFIG_FILE_NAME
                 saveStaticSimViewValuesToFile(values, file_to_save)
                 window[CONFIG_FILE_TEXT].update(file_to_save)
                 window[SIMULAR_INPUT].update(disabled=False)
@@ -529,6 +529,7 @@ def cargarSesionPrevia(sesion_previa):
 
 def generarCarpetaSesion(nombre, file_to_save):
     new_dir_name = SESSIONS_PATH + f"{nombre}/"
+    new_file_name = new_dir_name + CONFIG_FILE_NAME
 
     if not os.path.isdir(new_dir_name):
         os.mkdir(new_dir_name)
