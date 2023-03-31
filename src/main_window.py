@@ -531,6 +531,9 @@ def generarCarpetaSesion(nombre, file_to_save):
     new_dir_name = SESSIONS_PATH + f"{nombre}/"
     new_file_name = new_dir_name + CONFIG_FILE_NAME
 
+    if not os.path.isdir(SESSIONS_PATH):
+        os.mkdir(SESSIONS_PATH)
+        
     if not os.path.isdir(new_dir_name):
         os.mkdir(new_dir_name)
         shutil.copy(file_to_save, new_dir_name)
