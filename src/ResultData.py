@@ -1,4 +1,5 @@
 from KeyDefines import *
+from enum import Enum
 
 RESULT_DATA_STR = "result_data"
 
@@ -9,6 +10,10 @@ class ResultData():
         self.parametric_var = parametric_var
         self.status = "UNKNOWN"
         self.error = ""
+        self.recurso_solar = ""
+        self.curva_iv = ""
+        self.gen_elec = ""
+        self.images_dict = {}
 
     def addRecursoSolar(self, valor, az, conn):
         pass
@@ -44,7 +49,6 @@ class ResultData():
         receives a dictionary and sets data from it
         """""
         for id, value in new_data[RESULT_DATA_STR].items():
-            print(id, value)
             if id == "status":
                 self.status = value
             if id == "azimut":
@@ -53,6 +57,11 @@ class ResultData():
                 self.connection = value
             if id == "var_parametrica":
                 self.parametric_var = value
+        
+        if self.parametric_var == "no_parametrica":
+            return ResultDataNoParametric.FromFileToData(self, new_data)
+        else:
+            return self
 
 
 class ResultDataAz(ResultData):
@@ -109,3 +118,65 @@ class ResultDataConn(ResultData):
         else:
             dict_aux = {GEN_ELECTRICA_TEXT : valor}
             self.connection[conn] = dict_aux            
+
+
+class ResultDataNoParametric(ResultData):
+    def __init__(self, parametric_var="no_parametrica", azimut=0, connection=""):
+        super().__init__(parametric_var)
+        self.azimut = azimut
+        self.connection = connection
+
+    def addRecursoSolar(self, valor, az, conn):
+        self.recurso_solar = valor
+
+    def addCurvaIV(self, valor, az, conn):
+        self.curva_iv = valor
+
+    def addGenElec(self, valor, az, conn):
+        self.gen_elec = valor
+
+    def setImagesDict(self):
+        images = { RECURSO_SOLAR_TEXT : self.recurso_solar,
+            CURVAS_IV_TEXT : self.curva_iv,
+            GEN_ELECTRICA_TEXT : self.gen_elec
+        }
+        parametric_var = self.parametric_var
+        parametric_map = { 0 : images}
+        self.images_dict = { "var_parametrica": self.parametric_var,
+                 "status" : self.status,
+                 "azimut" : self.azimut,
+                 "connection" : self.connection,
+                 parametric_var : parametric_map
+        }
+
+    def FromDataToFile(self):
+        """
+        returns a dictionary with data encapsuled in a identificative string
+        """
+        self.setImagesDict()
+        data = self.images_dict
+        if self.error and self.status == "ERROR":
+            data["error"] = self.error
+
+        file_dict = {RESULT_DATA_STR : data}
+        return file_dict
+    
+    def FromFileToData(self, new_data):
+        """""
+        receives a dictionary and sets data from it
+        """""
+        print("ResultDataNoParametric::FromFileToData")
+        # super().FromFileToData(new_data)
+        for id, value in new_data[RESULT_DATA_STR].items():
+            print(id, value)
+            if id == "status":
+                self.status = value
+            if id == "azimut":
+                self.azimut = value
+            if id == "connection":
+                self.connection = value
+            if id == "var_parametrica":
+                self.parametric_var = value
+            if id == self.parametric_var:
+                self.images_dict = value
+        return self

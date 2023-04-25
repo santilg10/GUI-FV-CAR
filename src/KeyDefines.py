@@ -30,6 +30,7 @@ DIM_X_INPUT             = "-DIM_X_INPUT-"
 DIM_Y_INPUT             = "-DIM_Y_INPUT-"
 CURVATURA_INPUT         = "-CURVATURA_INPUT-"
 ORIENTACION_INPUT       = "-ORIENTACION_INPUT-"
+AZIMUT_INPUT            = "-AZIMUT-INPUT-"
 
 #configuración célula
 TECNOLOGIA_INPUT        = "-TECNOLOGIA_INPUT-"
@@ -51,6 +52,7 @@ LIM_SUP_INPUT           = "-LIM_SUP_INPUT-"
 LIM_INF_INPUT           = "-LIM_INF_INPUT-"
 RANGO_INPUT             = "-RANGO_INPUT-"
 VALUES_PARAMETRIC_INPUT = "-VALUES_PARAMETRIC_INPUT-"
+ENABLE_PARAMETRIC_INPUT = "-ENABLE_PARAMETRIC_INPUT-"
 
 #tipos resultados
 RECURSO_SOLAR_INPUT     = "-RECURSO_SOLAR_INPUT-"
@@ -92,3 +94,5 @@ SESSIONS_PATH           = "sessions/"
 CONNECTIONS_DEFAULT_PATH= "data/connections/"
 RESULT_FILE             = "result_file.yaml"
 CONFIG_FILE_NAME        = "config_static_sim_data.yaml"
+
+DEBUG_ENABLE            = False
