@@ -86,6 +86,8 @@ POPUP_INPUT             = "-POPUP_INPUT-"
 RADIATION_TYPE_GROUP    = "-RADIATION_TYPE_GROUP"
 INIT_SIMULATION         = "-INIT_SIMULATION-"
 GENERAR_CONFIG          = "-GENERAR_CONFIG-"
+VER_RESULTADOS_OPTION   = "Ver resultados"
+RELANZAR_SIM_OPTION     = "Relanzar simulación"
 
 ANACONDA_EXECUTE        = "python"
 MODEL_SCRIPT            = "src/ficheros_datos_accede.py"

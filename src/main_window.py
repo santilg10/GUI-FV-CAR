@@ -436,6 +436,10 @@ def mainloop():
             result_int = acceptInput(str(values[DIM_Y_INPUT]))
             window[DIM_Y_INPUT].update(result_int)
 
+        elif event == CURVATURA_INPUT:
+            result_int = acceptInput(str(values[CURVATURA_INPUT]))
+            window[CURVATURA_INPUT].update(result_int)
+
         elif event == ORIENTACION_INPUT:
             result_int = acceptInput(str(values[ORIENTACION_INPUT]))
             window[ORIENTACION_INPUT].update(result_int)
@@ -503,11 +507,7 @@ def mainloop():
         elif event == SIMULAR_INPUT:
             save_data = checkSession(values)
             if save_data:
-                lanzarSimulacion(values)
-                if result_data.status == "OK":
-                    mostrarResultados()
-                else:
-                    sg.popup_error("Fallo en la simulación: archivo vacío")
+                lanzarSimulacion(window[CONFIG_FILE_TEXT].get(), values[NOMBRE_INPUT], values[DESCRIPCION_INPUT])
 
         #INPUTs Vista Resultados
         elif event == RESULTADO_INPUT:
@@ -534,19 +534,34 @@ def cargarSesionPrevia(sesion_previa):
     config_name = sesion_previa + "/config_static_sim_data.yaml"
     if os.path.isfile(config_name):
         cargarConfig(config_name)
+
+        description_file = sesion_previa + "/descripcion.txt"
+        if os.path.isfile(description_file):
+            leerDescripcion(description_file)
+
+        result_file = sesion_previa + "/result/" + RESULT_FILE
+        if os.path.isfile(result_file):
+            new_data = reader.readData(result_file)
+            result_data.FromFileToData(new_data)
+            choice = popUpSesionYaGenerada()
+            if choice == VER_RESULTADOS_OPTION:
+                mostrarResultados()
+            elif choice == RELANZAR_SIM_OPTION:
+                lanzarSimulacion(window[CONFIG_FILE_TEXT].get(), window[NOMBRE_INPUT].get(), window[DESCRIPCION_INPUT].get())
+            else:
+                sg.popup_error(f"ERROR: Opción de simulación {choice} inválida")
     else:
         sg.popup_error(f"ERROR: No existe el fichero {config_name}. Cargarlo manualmente")
 
-    result_file = sesion_previa + "/result/" + RESULT_FILE
-    if os.path.isfile(result_file):
-        new_data = reader.readData(result_file)
-        result_data.FromFileToData(new_data)
-        mostrarResultados()
 
-    description_file = sesion_previa + "/descripcion.txt"
-    if os.path.isfile(description_file):
-        leerDescripcion(description_file)
-    
+
+
+def popUpSesionYaGenerada():
+    layout_choice = [[sg.T('Sesión ya generada')],
+                     [sg.B(VER_RESULTADOS_OPTION, size=min_button_size), sg.B(RELANZAR_SIM_OPTION, size=min_button_size)]]
+    choice = sg.Window('Sesión ya generada', layout=layout_choice, disable_close=True).read(close=True)
+    print(choice[0])
+    return choice[0]
 
 
 def generarCarpetaSesion(nombre, file_to_save):
@@ -559,19 +574,22 @@ def generarCarpetaSesion(nombre, file_to_save):
 
     return new_dir_name
 
-def lanzarSimulacion(values):
-    file_to_save = window[CONFIG_FILE_TEXT].get()
-
-    new_dir_name = generarCarpetaSesion(values[NOMBRE_INPUT], file_to_save)
+def lanzarSimulacion(config_file, session_name, description):   #Config_file, session_name, description
+    file_to_save = config_file
+    new_dir_name = generarCarpetaSesion(session_name, file_to_save)
     args = [file_to_save, new_dir_name]
     subprocess.run([ANACONDA_EXECUTE, MODEL_SCRIPT] + args)
-    guardarDescripcion(values[DESCRIPCION_INPUT], new_dir_name + "descripcion.txt")
+    guardarDescripcion(description, new_dir_name + "descripcion.txt")
 
     result_file = new_dir_name + "result/" + RESULT_FILE
     if os.path.isfile(result_file):
         new_data = reader.readData(result_file)
         result_data.FromFileToData(new_data)
 
+        if result_data.status == "OK":
+            mostrarResultados()
+        else:
+            sg.popup_error("Fallo en la simulación: archivo vacío")
     else:
         sg.popup_error("Fallo en la simulación: no se generó el archivo de resultados")
 
@@ -588,6 +606,7 @@ def leerDescripcion(description_file):
     f.close()
 
 def mostrarResultados():
+    print("\nMOSTRAR RESULTADOS\n")
     parametric_var = result_data.parametric_var
     global dict_results
     if parametric_var == "azimut":
