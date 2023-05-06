@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import threading
 import datetime
 import PySimpleGUI as sg
 import ValueChecker as vc
@@ -559,7 +560,7 @@ def cargarSesionPrevia(sesion_previa):
 def popUpSesionYaGenerada():
     layout_choice = [[sg.T('Sesión ya generada')],
                      [sg.B(VER_RESULTADOS_OPTION, size=min_button_size), sg.B(RELANZAR_SIM_OPTION, size=min_button_size)]]
-    choice = sg.Window('Sesión ya generada', layout=layout_choice, disable_close=True).read(close=True)
+    choice = sg.Window('Sesión ya generada', layout=layout_choice, disable_close=True, keep_on_top=True).read(close=True)
     print(choice[0])
     return choice[0]
 
@@ -574,11 +575,51 @@ def generarCarpetaSesion(nombre, file_to_save):
 
     return new_dir_name
 
+def callSubprocess(*args):
+    print(args)
+    subprocess.run([ANACONDA_EXECUTE, *args])
+    print("--------------- FIN DE LA SIMULACIÓN ---------------")
+    global subprocess_completed
+    subprocess_completed = True
+    print("subprocess_completed: ", subprocess_completed)
+    return
+
+def animateGIF(gif, close=False):
+    if close:
+        gif = None
+    prev_theme = sg.theme()
+    sg.theme("DarkGrey")
+    sg.PopupAnimated(image_source=gif, message="Cargando...", time_between_frames=100)
+    sg.theme(prev_theme)
+
+def loadingScreen(args):
+    load_img = IMAGES_PATH + "loading.gif"
+    load_win = sg.Window(title="Simulación en curso", layout=[[sg.T("Cargando")]], ttk_theme="DarkGrey")
+
+    global subprocess_completed
+    subprocess_completed = False
+    subprocess_thread = threading.Thread(target=callSubprocess, args=args)
+    subprocess_thread.start()
+    
+    while not subprocess_completed:
+        event, values = load_win.Read(timeout=100)
+
+        if event == sg.WIN_CLOSED:
+            trigger = sg.WIN_CLOSED
+            break
+        else:
+            animateGIF(load_img)
+    
+    subprocess_thread.join()
+    load_win.close()
+    animateGIF(load_img, close=True)
+
 def lanzarSimulacion(config_file, session_name, description):   #Config_file, session_name, description
     file_to_save = config_file
     new_dir_name = generarCarpetaSesion(session_name, file_to_save)
-    args = [file_to_save, new_dir_name]
-    subprocess.run([ANACONDA_EXECUTE, MODEL_SCRIPT] + args)
+    args = [MODEL_SCRIPT, file_to_save, new_dir_name]
+    loadingScreen(args)
+
     guardarDescripcion(description, new_dir_name + "descripcion.txt")
 
     result_file = new_dir_name + "result/" + RESULT_FILE
