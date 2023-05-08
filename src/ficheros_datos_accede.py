@@ -6,10 +6,11 @@ import sys
 import os
 import DataStaticSim as dss
 from YAMLAdapter import YAMLReader, YAMLWriter
-from ResultData import ResultData, ResultDataAz, ResultDataConn
+from ResultData import ResultData, ResultDataAz, ResultDataConn, ResultDataNoParametric
 from KeyDefines import *
 
 connection = "SbSx"
+azimut = 0
 azimuths = []
 connections = []
 list_ret = []
@@ -23,8 +24,6 @@ if len(sys.argv) == 3:
     datastaticsim = dss.DataStaticSim()
     datastaticsim.FromFileToData(new_data)
 
-    connection = datastaticsim.GetValue("conexion")
-
     parametric_var = datastaticsim.GetValue("var_parametrica")
     result_data = ResultData(parametric_var)
     if parametric_var == "azimut":
@@ -37,6 +36,11 @@ if len(sys.argv) == 3:
         connections = datastaticsim.GetValue("valores_parametrica")
         azimuths.append(datastaticsim.GetValue("azimut"))
         result_data = ResultDataConn(azimut=datastaticsim.GetValue("azimut"))
+
+    elif parametric_var == "no_parametrica":
+        connections.append(datastaticsim.GetValue("conexion"))
+        azimuths.append(datastaticsim.GetValue("azimut"))
+        result_data = ResultDataNoParametric()
 
     print(azimuths, connections)
 
@@ -108,7 +112,7 @@ for azimuth_iter in azimuths:
 
     for connection_iter in connections:
         # path2 = PATH1 / connection / f'azimuth {azimuth_iter}'
-        print(connection, azimuth_iter)
+        print(connection_iter, azimuth_iter)
         path2 = connections_path + f'{connection_iter}/azimuth {azimuth_iter}'
         if os.path.isdir(path2):
             with open(path2 + "/irr_map.pickle", 'rb') as handle:

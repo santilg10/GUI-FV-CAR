@@ -30,6 +30,7 @@ DIM_X_INPUT             = "-DIM_X_INPUT-"
 DIM_Y_INPUT             = "-DIM_Y_INPUT-"
 CURVATURA_INPUT         = "-CURVATURA_INPUT-"
 ORIENTACION_INPUT       = "-ORIENTACION_INPUT-"
+AZIMUT_INPUT            = "-AZIMUT-INPUT-"
 
 #configuración célula
 TECNOLOGIA_INPUT        = "-TECNOLOGIA_INPUT-"
@@ -51,6 +52,7 @@ LIM_SUP_INPUT           = "-LIM_SUP_INPUT-"
 LIM_INF_INPUT           = "-LIM_INF_INPUT-"
 RANGO_INPUT             = "-RANGO_INPUT-"
 VALUES_PARAMETRIC_INPUT = "-VALUES_PARAMETRIC_INPUT-"
+ENABLE_PARAMETRIC_INPUT = "-ENABLE_PARAMETRIC_INPUT-"
 
 #tipos resultados
 RECURSO_SOLAR_INPUT     = "-RECURSO_SOLAR_INPUT-"
@@ -84,6 +86,8 @@ POPUP_INPUT             = "-POPUP_INPUT-"
 RADIATION_TYPE_GROUP    = "-RADIATION_TYPE_GROUP"
 INIT_SIMULATION         = "-INIT_SIMULATION-"
 GENERAR_CONFIG          = "-GENERAR_CONFIG-"
+VER_RESULTADOS_OPTION   = "Ver resultados"
+RELANZAR_SIM_OPTION     = "Relanzar simulación"
 
 ANACONDA_EXECUTE        = "python"
 MODEL_SCRIPT            = "src/ficheros_datos_accede.py"
@@ -92,3 +96,5 @@ SESSIONS_PATH           = "sessions/"
 CONNECTIONS_DEFAULT_PATH= "data/connections/"
 RESULT_FILE             = "result_file.yaml"
 CONFIG_FILE_NAME        = "config_static_sim_data.yaml"
+
+DEBUG_ENABLE            = False

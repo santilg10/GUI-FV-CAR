@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import threading
 import datetime
 import PySimpleGUI as sg
 import ValueChecker as vc
@@ -57,7 +58,8 @@ for i in range(91):
     if (i % 5) == 0:
         lista_azimuts.append(i)
 
-dict_parametric_vars = {"azimut" : lista_azimuts,
+dict_parametric_vars = {"no_parametrica" : [],
+                        "azimut" : lista_azimuts,
                         "connection" : lista_conexiones}
 parametric_keys = []
 for key in dict_parametric_vars:
@@ -167,11 +169,15 @@ def GeometriaLayout():
     orientacion_layout =    [sg.T("Orientación", size=geom_min_size),
                             sg.Spin(values=resolution_values, size=min_size, key=ORIENTACION_INPUT),
                             sg.T("º")]
+    
+    azimut_layout =         [sg.T("Azimut", size=geom_min_size),
+                            sg.Spin(values=lista_azimuts, size=min_size, key=AZIMUT_INPUT)]
 
     layout_geometria =  [x_layout,
                         y_layout,
                         curvatura_layout,
-                        orientacion_layout]
+                        orientacion_layout,
+                        azimut_layout]
     return layout_geometria
 
 
@@ -240,22 +246,24 @@ def RadiacionLayout():
 #
 #################
 
-def ParametricLayout():
+def ParametricLayout(enabled):
+    enable_parametric =     [sg.Checkbox("Simulación paramétrica", key=ENABLE_PARAMETRIC_INPUT, enable_events=True)]
     parametric_var_layout = [sg.vtop(sg.Text("Variable parametrizable", size=param_var_size)), 
-                             sg.Combo(values=parametric_keys, default_value=parametric_keys[0], 
+                             sg.Combo(values=parametric_keys, default_value=parametric_keys[0], disabled=(not enabled),
                                       size=(min_width, listbox_size),readonly=True, key=PARAMETRIC_VAR_INPUT, enable_events=True)]
     valores_layout =        [sg.vtop(sg.Text("Valores", size=param_var_size)),
                              sg.Listbox(values=lista_azimuts, size=(min_width, listbox_size), select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE, 
-                                        enable_events=True, key=VALUES_PARAMETRIC_INPUT)]
+                                        enable_events=True, key=VALUES_PARAMETRIC_INPUT, disabled=(not enabled))]
 
-    layout_parametric =     [parametric_var_layout,
-                            #  lim_inf_layout,
-                            #  lim_sup_layout,
-                            #  rango_layout,
+    layout_parametric =     [enable_parametric,
+                             parametric_var_layout,
                              valores_layout]
 
     return layout_parametric
 
+def FrameDatosParametricos():
+    frame_parametrica = sg.Frame("Datos paramétricos", layout=ParametricLayout(False), expand_x=True, expand_y=True)
+    return frame_parametrica
 
 #################
 #
@@ -269,10 +277,9 @@ def FrameStaticSimConfig():
     frame_geometria =           sg.Frame("Geometría", GeometriaLayout(), expand_x=True, expand_y=True)
     frame_configuracion_cel =   sg.Frame("Configuración célula", ConfigCelLayout(), expand_x=True, expand_y=True)
     frame_radiacion =           sg.Frame("Datos radiación", layout=RadiacionLayout(), expand_x=True, expand_y=True)
-    frame_parametrica =         sg.Frame("Datos paramétricos", layout=ParametricLayout(), expand_x=True, expand_y=True)
     generar_config_layout =     [sg.Push(), sg.Button("Generar config", size=(20,2), key=GENERAR_CONFIG), sg.Push()]
     static_sim_data_layout =    [[frame_fecha_lugar, frame_configuracion_cel, frame_geometria],
-                                 [frame_radiacion, frame_parametrica],
+                                 [frame_radiacion],
                                  generar_config_layout]
     frame_static_sim_config =   sg.Frame("", layout=static_sim_data_layout)
     global frame_size
@@ -307,6 +314,7 @@ def FrameSessionData():
     session_data_layout = [nombre_layout,
                            descripcion_layout,
                            config_file_layout,
+                           [FrameDatosParametricos()],
                            [sg.VPush()],
                            load_session_layout,
                            [sg.VPush()],
@@ -348,7 +356,7 @@ def StaticSimLayout():
     tab_results_layout =    [[FrameResults()]]
     tab_group_layout =      [[sg.Tab("Sesión", tab_sesion_layout, key=TAB_SESION),
                              sg.Tab("Configuración", tab_data_layout, key=TAB_CONFIG),
-                             sg.Tab("Results", tab_results_layout, key=TAB_RESULTADOS, visible=False)]]
+                             sg.Tab("Resultados", tab_results_layout, key=TAB_RESULTADOS, visible=False)]]
     
     static_sim_layout =     [[sg.TabGroup(tab_group_layout, enable_events=True, key=TAB_GRUPO)],
                              [sg.Column(back_col),]]
@@ -371,6 +379,7 @@ def VistaSimEstatica():
     window[DIM_Y_INPUT].bind('<Key>', "")
     window[CURVATURA_INPUT].bind('<Key>', "")
     window[ORIENTACION_INPUT].bind('<Key>', "")
+    window[AZIMUT_INPUT].bind('<Key>', "")
 
 #################
 #
@@ -428,13 +437,27 @@ def mainloop():
             result_int = acceptInput(str(values[DIM_Y_INPUT]))
             window[DIM_Y_INPUT].update(result_int)
 
+        elif event == CURVATURA_INPUT:
+            result_int = acceptInput(str(values[CURVATURA_INPUT]))
+            window[CURVATURA_INPUT].update(result_int)
+
         elif event == ORIENTACION_INPUT:
             result_int = acceptInput(str(values[ORIENTACION_INPUT]))
             window[ORIENTACION_INPUT].update(result_int)
 
+        elif event == AZIMUT_INPUT:
+            result_int = acceptInput(str(values[AZIMUT_INPUT]))
+            window[AZIMUT_INPUT].update(result_int)
+
         elif event == DIM_X_INPUT:
             result_int = acceptInput(str(values[DIM_X_INPUT]))
             window[DIM_X_INPUT].update(result_int)
+
+        elif event == ENABLE_PARAMETRIC_INPUT:
+            enabled = values[ENABLE_PARAMETRIC_INPUT]
+            window[PARAMETRIC_VAR_INPUT].update(disabled=not enabled)
+            window[VALUES_PARAMETRIC_INPUT].update(disabled=not enabled)
+
 
         elif event == PARAMETRIC_VAR_INPUT:
             if values[PARAMETRIC_VAR_INPUT] in dict_parametric_vars:
@@ -485,11 +508,7 @@ def mainloop():
         elif event == SIMULAR_INPUT:
             save_data = checkSession(values)
             if save_data:
-                lanzarSimulacion(values)
-                if result_data.status == "OK":
-                    mostrarResultados()
-                else:
-                    sg.popup_error("Fallo en la simulación: archivo vacío")
+                lanzarSimulacion(window[CONFIG_FILE_TEXT].get(), values[NOMBRE_INPUT], values[DESCRIPCION_INPUT])
 
         #INPUTs Vista Resultados
         elif event == RESULTADO_INPUT:
@@ -516,15 +535,34 @@ def cargarSesionPrevia(sesion_previa):
     config_name = sesion_previa + "/config_static_sim_data.yaml"
     if os.path.isfile(config_name):
         cargarConfig(config_name)
+
+        description_file = sesion_previa + "/descripcion.txt"
+        if os.path.isfile(description_file):
+            leerDescripcion(description_file)
+
+        result_file = sesion_previa + "/result/" + RESULT_FILE
+        if os.path.isfile(result_file):
+            new_data = reader.readData(result_file)
+            result_data.FromFileToData(new_data)
+            choice = popUpSesionYaGenerada()
+            if choice == VER_RESULTADOS_OPTION:
+                mostrarResultados()
+            elif choice == RELANZAR_SIM_OPTION:
+                lanzarSimulacion(window[CONFIG_FILE_TEXT].get(), window[NOMBRE_INPUT].get(), window[DESCRIPCION_INPUT].get())
+            else:
+                sg.popup_error(f"ERROR: Opción de simulación {choice} inválida")
     else:
         sg.popup_error(f"ERROR: No existe el fichero {config_name}. Cargarlo manualmente")
 
-    result_file = sesion_previa + "/result/" + RESULT_FILE
-    if os.path.isfile(result_file):
-        new_data = reader.readData(result_file)
-        result_data.FromFileToData(new_data)
-        mostrarResultados()
-    
+
+
+
+def popUpSesionYaGenerada():
+    layout_choice = [[sg.T('Sesión ya generada')],
+                     [sg.B(VER_RESULTADOS_OPTION, size=min_button_size), sg.B(RELANZAR_SIM_OPTION, size=min_button_size)]]
+    choice = sg.Window('Sesión ya generada', layout=layout_choice, disable_close=True, keep_on_top=True).read(close=True)
+    print(choice[0])
+    return choice[0]
 
 
 def generarCarpetaSesion(nombre, file_to_save):
@@ -540,22 +578,79 @@ def generarCarpetaSesion(nombre, file_to_save):
 
     return new_dir_name
 
-def lanzarSimulacion(values):
-    file_to_save = window[CONFIG_FILE_TEXT].get()
+def callSubprocess(*args):
+    print(args)
+    subprocess.run([ANACONDA_EXECUTE, *args])
+    print("--------------- FIN DE LA SIMULACIÓN ---------------")
+    global subprocess_completed
+    subprocess_completed = True
+    print("subprocess_completed: ", subprocess_completed)
+    return
 
-    new_dir_name = generarCarpetaSesion(values[NOMBRE_INPUT], file_to_save)
-    args = [file_to_save, new_dir_name]
-    subprocess.run([ANACONDA_EXECUTE, MODEL_SCRIPT] + args)
+def animateGIF(gif, close=False):
+    if close:
+        gif = None
+    prev_theme = sg.theme()
+    sg.theme("DarkGrey")
+    sg.PopupAnimated(image_source=gif, message="Cargando...", time_between_frames=100)
+    sg.theme(prev_theme)
+
+def loadingScreen(args):
+    load_img = IMAGES_PATH + "loading.gif"
+    load_win = sg.Window(title="Simulación en curso", layout=[[sg.T("Cargando")]], ttk_theme="DarkGrey")
+
+    global subprocess_completed
+    subprocess_completed = False
+    subprocess_thread = threading.Thread(target=callSubprocess, args=args)
+    subprocess_thread.start()
     
+    while not subprocess_completed:
+        event, values = load_win.Read(timeout=100)
+
+        if event == sg.WIN_CLOSED:
+            trigger = sg.WIN_CLOSED
+            break
+        else:
+            animateGIF(load_img)
+    
+    subprocess_thread.join()
+    load_win.close()
+    animateGIF(load_img, close=True)
+
+def lanzarSimulacion(config_file, session_name, description):   #Config_file, session_name, description
+    file_to_save = config_file
+    new_dir_name = generarCarpetaSesion(session_name, file_to_save)
+    args = [MODEL_SCRIPT, file_to_save, new_dir_name]
+    loadingScreen(args)
+
+    guardarDescripcion(description, new_dir_name + "descripcion.txt")
+
     result_file = new_dir_name + "result/" + RESULT_FILE
     if os.path.isfile(result_file):
         new_data = reader.readData(result_file)
         result_data.FromFileToData(new_data)
 
+        if result_data.status == "OK":
+            mostrarResultados()
+        else:
+            sg.popup_error("Fallo en la simulación: archivo vacío")
     else:
         sg.popup_error("Fallo en la simulación: no se generó el archivo de resultados")
 
+def guardarDescripcion(descripcion, description_file):
+    f = open(description_file, "w")
+    f.write(descripcion)
+    f.close()
+
+def leerDescripcion(description_file):
+    f = open(description_file, "r")
+    descripcion = f.read()
+    print(descripcion)
+    window[DESCRIPCION_INPUT].update(descripcion)
+    f.close()
+
 def mostrarResultados():
+    print("\nMOSTRAR RESULTADOS\n")
     parametric_var = result_data.parametric_var
     global dict_results
     if parametric_var == "azimut":
@@ -565,6 +660,12 @@ def mostrarResultados():
     elif parametric_var == "connection":
         window[PARAM_VAR_TEXT].update(result_data.parametric_var)
         dict_results = result_data.connection
+    
+    elif parametric_var == "no_parametrica":
+        window[PARAM_VAR_TEXT].update(result_data.parametric_var)
+        dict_results = result_data.images_dict
+
+        window[VALOR_PARAMETRICA].update(disabled=True)
 
     else:
         sg.popup_error(f"ERROR: variable paramétrica {parametric_var} no contemplada")
@@ -626,6 +727,7 @@ def setStaticSimViewValuesFromFile(data):
     window[DIM_Y_INPUT].update(data["y"])
     window[CURVATURA_INPUT].update(data["curvatura"])
     window[ORIENTACION_INPUT].update(data["orientacion"])
+    window[AZIMUT_INPUT].update(data["azimut"])
     tec_index = vc.ValueChecker().findValueInList(lista_tecnologias, data["tecnologia"])
     window[TECNOLOGIA_INPUT].update(set_to_index=tec_index)
     window[NUM_CEL_X_INPUT].update(data["num_cels_x"])
@@ -636,11 +738,14 @@ def setStaticSimViewValuesFromFile(data):
     updateTipoDatosRadiacion(tipo_datos_radiacion=tipo_datos_radiacion)
 
     var_parametrica = data["var_parametrica"]
-    if var_parametrica in dict_parametric_vars:
+    if var_parametrica in dict_parametric_vars or var_parametrica == "no_parametrica" :
         par_index = vc.ValueChecker().findValueInList(parametric_keys, var_parametrica)
         window[PARAMETRIC_VAR_INPUT].update(set_to_index=par_index)
         window[VALUES_PARAMETRIC_INPUT].update(dict_parametric_vars[var_parametrica])
-        window[VALUES_PARAMETRIC_INPUT].set_value(data["valores_parametrica"])
+        if len(data["valores_parametrica"]) != 0:
+            window[VALUES_PARAMETRIC_INPUT].set_value(data["valores_parametrica"])
+            window[ENABLE_PARAMETRIC_INPUT].update(True)
+            window.write_event_value(ENABLE_PARAMETRIC_INPUT, True)
     else:
         sg.popup_error(f"ERROR al cargar archivo de configuración: variable paramétrica {var_parametrica} no se reconoce")
 
@@ -655,16 +760,16 @@ def saveStaticSimViewValuesToFile(data, file_to_save):
         y=data[DIM_Y_INPUT],
         curvatura=data[CURVATURA_INPUT],
         orientacion=data[ORIENTACION_INPUT],
+        azimut=data[AZIMUT_INPUT],
         tecnologia=data[TECNOLOGIA_INPUT][0],
         num_cels_x=data[NUM_CEL_X_INPUT],
         num_cels_y=data[NUM_CEL_Y_INPUT],
         conexion=data[CONEXION_INPUT][0],
         tipo_datos_radiacion=tipo_datos_radiacion,
         datos_radiacion="",
-        var_parametrica=data[PARAMETRIC_VAR_INPUT],
-        # lim_sup=data[LIM_SUP_INPUT],
-        # lim_inf=data[LIM_INF_INPUT],
-        # rango=data[RANGO_INPUT],
+        var_parametrica=(data[PARAMETRIC_VAR_INPUT] 
+                         if data[ENABLE_PARAMETRIC_INPUT] 
+                         else "no_parametrica"),
         valores_parametricos=data[VALUES_PARAMETRIC_INPUT])
 
     writer.writeData(file_to_save, datastaticsim.FromDataToFile())
