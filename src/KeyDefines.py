@@ -1,3 +1,4 @@
+from enum import Enum
 #tipos simulaciones
 STATIC_SIM_SELECTED     = "-STATIC_SIM_SELECTED-"
 DINAMIC_SIM_SELECTED    = "-DINAMIC_SIM_SELECTED-"
@@ -66,6 +67,7 @@ TAB_RESULTADOS          = "-TAB_RESULTADOS-"
 TAB_GRUPO               = "-TAB_GRUPO-"
 FRAME_RESULTADOS        = "-FRAME_RESULTADOS-"
 VALOR_PARAMETRICA       = "-VALOR_PARAMETRICA-"
+VALOR_NO_PARAMETRICA    = "-VALOR_NO_PARAMETRICA-"
 RESULTADO_INPUT         = "-RESULTADO-INPUT-"
 RECURSO_SOLAR_IMAGE     = "-RECURSO_SOLAR_IMAGE-"
 CURVAS_IV_IMAGE         = "-CURVAS_IV_IMAGE-"
@@ -75,6 +77,12 @@ RECURSO_SOLAR_TEXT      = "Recurso solar"
 CURVAS_IV_TEXT          = "Curva I-V"
 GEN_ELECTRICA_TEXT      = "Generacion electrica"
 RESULT_IMAGE            = "-RESULT_IMAGE-"
+MOMENTO_INPUT           = "-MOMENTO_INPUT-"
+GENERAR_GRAFICA_INPUT   = "-GENERAR_GRAFICA_INPUT-"
+RESULT_RESOLUTION_GROUP = "-RESULT_RESOLUTION_GROUP-"
+RESOLUCION_HORARIA      = "-RESOLUCION_HORARIA-"
+RESOLUCION_DIARIA       = "-RESOLUCION_DIARIA-"
+RESOLUCION_MENSUAL      = "-RESOLUCION_MENSUAL-"
 
 #elementos auxiliares
 GUARDAR_INPUT           = "-GUARDAR_INPUT-"
@@ -98,3 +106,12 @@ RESULT_FILE             = "result_file.yaml"
 CONFIG_FILE_NAME        = "config_static_sim_data.yaml"
 
 DEBUG_ENABLE            = False
+LISTA_CONEXIONES        = ("hmSbxPx", "hmSbxPy", "hmSxPbx", 
+                           "hmSxPby", "hmSxPx", "hmSxPy", 
+                           "hmSyPbx", "hmSyPby", "hmSyPx", 
+                           "hmSyPy", "SbSx", "SSbx", "SSby")
+LISTA_RESULTADOS        = [RECURSO_SOLAR_TEXT, CURVAS_IV_TEXT, GEN_ELECTRICA_TEXT]
+class ParametricVarTypes(Enum):
+    AZIMUT_TYPE = "azimut"
+    CONNECTION_TYPE = "connection"
+    NO_PARAMETRIC_TYPE = "no_parametrica"
