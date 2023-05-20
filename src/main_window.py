@@ -3,10 +3,15 @@ import shutil
 import subprocess
 import threading
 import datetime
+import io
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasAgg
 import PySimpleGUI as sg
 import ValueChecker as vc
 import DataStaticSim as dss
 import ResultData as rd
+import ConnectionDataReader as cdr
+import FrameResultParametric as paramFrames
 from EstadosVistas import EstadosVistas
 from YAMLAdapter import YAMLReader, YAMLWriter
 from KeyDefines import *
@@ -46,12 +51,6 @@ listbox_size = 5
 
 #   LISTAS AUXILIARES
 lista_tecnologias = ("DSC", "CIS", "CdTe", "a-Si", "TF-Si")
-lista_conexiones = ("hmSbxPx", "hmSbxPy", 
-                    "hmSxPbx", "hmSxPby", 
-                    "hmSxPx", "hmSxPy", 
-                    "hmSyPbx", "hmSyPby", 
-                    "hmSyPx", "hmSyPy", 
-                    "SbSx", "SSbx", "SSby")
 lista_tmy = ("DB1", "DB2", "DB3")
 lista_azimuts = []
 for i in range(91):
@@ -60,7 +59,7 @@ for i in range(91):
 
 dict_parametric_vars = {"no_parametrica" : [],
                         "azimut" : lista_azimuts,
-                        "connection" : lista_conexiones}
+                        "connection" : LISTA_CONEXIONES}
 parametric_keys = []
 for key in dict_parametric_vars:
     parametric_keys.append(key)
@@ -92,8 +91,8 @@ def SimulationsLayout():
     return simulations_layout
 
 def VistaSimulaciones():
-    global window
-    window = sg.Window("FV CAR MODEL", layout=SimulationsLayout(), element_padding=(200,50))
+    global main_window
+    main_window = sg.Window("FV CAR MODEL", layout=SimulationsLayout(), element_padding=(200,50), finalize=True)
 
 
 #############################################
@@ -199,7 +198,7 @@ def ConfigCelLayout():
                             sg.Spin(values=resolution_values, expand_x=True, key=NUM_CEL_Y_INPUT)]
 
     conexion_layout =       [sg.vtop(sg.T("Tipo de conexión", size=geom_min_size)),
-                            sg.Listbox(values=lista_conexiones, default_values=lista_conexiones[0], size=(min_width, listbox_size), 
+                            sg.Listbox(values=LISTA_CONEXIONES, default_values=LISTA_CONEXIONES[0], size=(min_width, listbox_size), 
                                 no_scrollbar=True, select_mode=sg.LISTBOX_SELECT_MODE_SINGLE, key=CONEXION_INPUT)]
 
     layout_config_cel = [tecnologia_layout,
@@ -267,7 +266,7 @@ def FrameDatosParametricos():
 
 #################
 #
-#   VISTA CONFIG STATIC SIM 
+#   VISTA CONFIG STATIC SIM
 #
 #################
 
@@ -304,7 +303,6 @@ def FrameSessionData():
                            sg.FileBrowse("Cargar config", target=CARGAR_CONFIG_INPUT, key=CONFIG_FILE_BROWSER, file_types=(("YAML files", "*.yaml"),)),
                            sg.Text("", auto_size_text=True, key=CONFIG_FILE_TEXT)]
     
-    # todo: botón cargar sesión previa 
     load_session_layout = [sg.Input(key=CARGAR_SESION_INPUT, enable_events=True, visible=False), #solo para actualizar automáticamente
                            sg.Push(), 
                            sg.FolderBrowse(button_text="Cargar sesión previa", target=CARGAR_SESION_INPUT, size=button_size),
@@ -331,16 +329,19 @@ def FrameSessionData():
 #
 #################
 
-def FrameResults():
-    test_image = IMAGES_PATH + "test_image.png"
-    list_results = [RECURSO_SOLAR_TEXT, CURVAS_IV_TEXT, GEN_ELECTRICA_TEXT]
-    result_layout = [[sg.Text("Variable paramétrica", size=param_var_size),
-                      sg.Text("", auto_size_text=True, key=PARAM_VAR_TEXT),
-                      sg.Combo(values=button_menu_hour_list, default_value=button_menu_hour_list[0], readonly=True, enable_events=True, key=VALOR_PARAMETRICA, size=param_var_size)],
-                    [sg.Combo(values=list_results, default_value=list_results[0], size=param_var_size, readonly=True, enable_events=True, key=RESULTADO_INPUT),
-                     sg.Image(test_image, key=RESULT_IMAGE)]]
-    frame_results = sg.Frame("Resultados", result_layout, size=frame_size, key=FRAME_RESULTADOS)
-    return frame_results
+def ResultWindow():
+    global result_data
+    list_moments = result_data_reader.getMoments(result_data.firstConnection(), result_data.firstAzimut(), RECURSO_SOLAR_TEXT)
+    result_data_frame = paramFrames.FrameResultParametric(result_data, list_moments).metodoFabricacion(result_data.parametric_var)
+    result_data_frame.setSize(frame_size)
+
+    column_data_layout =    [[result_data_frame.drawFrame()]]
+    column_img_layout =     [[sg.Image(key=RESULT_IMAGE)]]
+    result_layout =         [[sg.Column(column_data_layout), sg.Column(column_img_layout)]]
+
+    return sg.Window("Resultados", layout=result_layout, finalize=True, resizable=True, metadata=result_data_frame.var_parametrica)
+
+
 
 #################
 #
@@ -353,10 +354,11 @@ def StaticSimLayout():
 
     tab_sesion_layout =     [[FrameSessionData()]]
     tab_data_layout =       [[FrameStaticSimConfig()]]
-    tab_results_layout =    [[FrameResults()]]
+    # tab_results_layout =    [[FrameResults()]]
     tab_group_layout =      [[sg.Tab("Sesión", tab_sesion_layout, key=TAB_SESION),
                              sg.Tab("Configuración", tab_data_layout, key=TAB_CONFIG),
-                             sg.Tab("Resultados", tab_results_layout, key=TAB_RESULTADOS, visible=False)]]
+                            #  sg.Tab("Resultados", tab_results_layout, key=TAB_RESULTADOS, visible=False)
+                             ]]
     
     static_sim_layout =     [[sg.TabGroup(tab_group_layout, enable_events=True, key=TAB_GRUPO)],
                              [sg.Column(back_col),]]
@@ -365,21 +367,21 @@ def StaticSimLayout():
 
 
 def VistaSimEstatica():
-    global window
-    window = sg.Window("FV CAR MODEL", layout=StaticSimLayout(), finalize=True, 
+    global main_window
+    main_window = sg.Window("FV CAR MODEL", layout=StaticSimLayout(), finalize=True, 
                        grab_anywhere_using_control=True, resizable=True)
     
     #añadir eventos
-    window[RESOLUCION_INPUT].bind('<Key>', "")
-    window[LONGITUD_INPUT].bind('<Button-3>', RIGHT_CLICK)
-    window[LATITUD_INPUT].bind('<Button-3>', RIGHT_CLICK)
-    window[NUM_CEL_X_INPUT].bind('<Key>', "")
-    window[NUM_CEL_Y_INPUT].bind('<Key>', "")
-    window[DIM_X_INPUT].bind('<Key>', "")
-    window[DIM_Y_INPUT].bind('<Key>', "")
-    window[CURVATURA_INPUT].bind('<Key>', "")
-    window[ORIENTACION_INPUT].bind('<Key>', "")
-    window[AZIMUT_INPUT].bind('<Key>', "")
+    main_window[RESOLUCION_INPUT].bind('<Key>', "")
+    main_window[LONGITUD_INPUT].bind('<Button-3>', RIGHT_CLICK)
+    main_window[LATITUD_INPUT].bind('<Button-3>', RIGHT_CLICK)
+    main_window[NUM_CEL_X_INPUT].bind('<Key>', "")
+    main_window[NUM_CEL_Y_INPUT].bind('<Key>', "")
+    main_window[DIM_X_INPUT].bind('<Key>', "")
+    main_window[DIM_Y_INPUT].bind('<Key>', "")
+    main_window[CURVATURA_INPUT].bind('<Key>', "")
+    main_window[ORIENTACION_INPUT].bind('<Key>', "")
+    main_window[AZIMUT_INPUT].bind('<Key>', "")
 
 #################
 #
@@ -389,15 +391,22 @@ def VistaSimEstatica():
 
 def mainloop():
     global tipo_datos_radiacion
-    tipo_datos_radiacion = "clear sky"
     global datastaticsim
+    global result_window
+    tipo_datos_radiacion = "clear sky"
+    window1, window2 = main_window, None
+
     while True:
-        event, values = window.read()
+        window, event, values = sg.read_all_windows()
         print(event)
 
         if event == sg.WIN_CLOSED:
-            trigger = sg.WIN_CLOSED
-            break
+            window.close()
+            if window == window2:       # if closing win 2, mark as closed
+                window2 = None
+            elif window == window1:     # if closing win 1, exit program
+                trigger = sg.WIN_CLOSED
+                break
 
         elif event == STATIC_SIM_SELECTED:
             trigger = STATIC_SIM_SELECTED
@@ -411,76 +420,76 @@ def mainloop():
             if save_data:
                 file_to_save = CONFIG_FILE_NAME
                 saveStaticSimViewValuesToFile(values, file_to_save)
-                window[CONFIG_FILE_TEXT].update(file_to_save)
-                window[SIMULAR_INPUT].update(disabled=False)
+                main_window[CONFIG_FILE_TEXT].update(file_to_save)
+                main_window[SIMULAR_INPUT].update(disabled=False)
 
         elif event == CARGAR_SESION_INPUT:
             cargarSesionPrevia(values[CARGAR_SESION_INPUT])
 
         elif event == NUM_CEL_Y_INPUT:
             result_int = acceptInput(str(values[NUM_CEL_Y_INPUT]))
-            window[NUM_CEL_Y_INPUT].update(result_int)
+            main_window[NUM_CEL_Y_INPUT].update(result_int)
 
         elif event == NUM_CEL_X_INPUT:
             result_int = acceptInput(str(values[NUM_CEL_X_INPUT]))
-            window[NUM_CEL_X_INPUT].update(result_int)
+            main_window[NUM_CEL_X_INPUT].update(result_int)
 
         elif event == RESOLUCION_INPUT:
             result_int = acceptInput(str(values[RESOLUCION_INPUT]))
-            window[RESOLUCION_INPUT].update(result_int)
+            main_window[RESOLUCION_INPUT].update(result_int)
 
         elif event == DIM_X_INPUT:
             result_int = acceptInput(str(values[DIM_X_INPUT]))
-            window[DIM_X_INPUT].update(result_int)
+            main_window[DIM_X_INPUT].update(result_int)
 
         elif event == DIM_Y_INPUT:
             result_int = acceptInput(str(values[DIM_Y_INPUT]))
-            window[DIM_Y_INPUT].update(result_int)
+            main_window[DIM_Y_INPUT].update(result_int)
 
         elif event == CURVATURA_INPUT:
             result_int = acceptInput(str(values[CURVATURA_INPUT]))
-            window[CURVATURA_INPUT].update(result_int)
+            main_window[CURVATURA_INPUT].update(result_int)
 
         elif event == ORIENTACION_INPUT:
             result_int = acceptInput(str(values[ORIENTACION_INPUT]))
-            window[ORIENTACION_INPUT].update(result_int)
+            main_window[ORIENTACION_INPUT].update(result_int)
 
         elif event == AZIMUT_INPUT:
             result_int = acceptInput(str(values[AZIMUT_INPUT]))
-            window[AZIMUT_INPUT].update(result_int)
+            main_window[AZIMUT_INPUT].update(result_int)
 
         elif event == DIM_X_INPUT:
             result_int = acceptInput(str(values[DIM_X_INPUT]))
-            window[DIM_X_INPUT].update(result_int)
+            main_window[DIM_X_INPUT].update(result_int)
 
         elif event == ENABLE_PARAMETRIC_INPUT:
             enabled = values[ENABLE_PARAMETRIC_INPUT]
-            window[PARAMETRIC_VAR_INPUT].update(disabled=not enabled)
-            window[VALUES_PARAMETRIC_INPUT].update(disabled=not enabled)
+            main_window[PARAMETRIC_VAR_INPUT].update(disabled=not enabled)
+            main_window[VALUES_PARAMETRIC_INPUT].update(disabled=not enabled)
 
 
         elif event == PARAMETRIC_VAR_INPUT:
             if values[PARAMETRIC_VAR_INPUT] in dict_parametric_vars:
-                window[VALUES_PARAMETRIC_INPUT].update(dict_parametric_vars[values[PARAMETRIC_VAR_INPUT]])
+                main_window[VALUES_PARAMETRIC_INPUT].update(dict_parametric_vars[values[PARAMETRIC_VAR_INPUT]])
 
         #INPUTs Fecha y Lugar
         elif event == (LATITUD_INPUT + RIGHT_CLICK):
             global latitud_value
-            window[LATITUD_INPUT].update(str(latitud_value))
+            main_window[LATITUD_INPUT].update(str(latitud_value))
             value = sg.popup_get_text('Enter slider value', keep_on_top=True, no_titlebar=True, grab_anywhere=True, size=(10,2))
             if (vc.ValueChecker().isStringFloat(value)):
-                window[LATITUD_INPUT].update(str(value))
+                main_window[LATITUD_INPUT].update(str(value))
                 latitud_value = value
             elif value is not None:
                 sg.popup_error("Número introducido no válido")
 
         elif event == (LONGITUD_INPUT + RIGHT_CLICK):
             global longitud_value
-            window[LONGITUD_INPUT].update(str(longitud_value))
+            main_window[LONGITUD_INPUT].update(str(longitud_value))
             # value=  popupInValue('', 'Enter slider value')
             value = sg.popup_get_text('Enter slider value', keep_on_top=True, no_titlebar=True, grab_anywhere=True, size=(10,2))
             if (vc.ValueChecker().isStringFloat(value)):
-                window[LONGITUD_INPUT].update(str(value))
+                main_window[LONGITUD_INPUT].update(str(value))
                 longitud_value = value
             elif value is not None:
                 sg.popup_error("Número introducido no válido")
@@ -503,35 +512,73 @@ def mainloop():
         #INPUTs Botones auxiliares
         elif event == BACK: 
             trigger = BACK
+            if window2 != None:
+                window2.close()
             break
         
         elif event == SIMULAR_INPUT:
             save_data = checkSession(values)
             if save_data:
-                lanzarSimulacion(window[CONFIG_FILE_TEXT].get(), values[NOMBRE_INPUT], values[DESCRIPCION_INPUT])
+                lanzarSimulacion(main_window[CONFIG_FILE_TEXT].get(), values[NOMBRE_INPUT], values[DESCRIPCION_INPUT])
 
-        #INPUTs Vista Resultados
+        elif event == GENERAR_GRAFICA_INPUT:
+            if window.metadata == ParametricVarTypes.AZIMUT_TYPE.value:
+                image_azimut = values[VALOR_PARAMETRICA]
+                image_connection = window[VALOR_NO_PARAMETRICA].DisplayText
+            elif window.metadata == ParametricVarTypes.CONNECTION_TYPE.value:
+                image_connection = values[VALOR_PARAMETRICA]
+                image_azimut = window[VALOR_NO_PARAMETRICA].DisplayText
+            elif window.metadata == ParametricVarTypes.NO_PARAMETRIC_TYPE.value:
+                image_azimut = window[VALOR_PARAMETRICA].DisplayText
+                image_connection = window[VALOR_NO_PARAMETRICA].DisplayText
+            else:
+                sg.popup_error(f"ERROR: variable paramétrica \"{window.metadata}\" no identificada")
+
+            image = result_data_reader.generateImage(image_connection, image_azimut, values[RESULTADO_INPUT], values[MOMENTO_INPUT][0])
+            draw_image(window[RESULT_IMAGE], image)
+        
         elif event == RESULTADO_INPUT:
-            updateResultTab(values[VALOR_PARAMETRICA], values[RESULTADO_INPUT])
+            if values[RESOLUCION_HORARIA]:
+                updateMomentsFrame(RESOLUCION_HORARIA, values[RESULTADO_INPUT])
+            elif values[RESOLUCION_DIARIA]:
+                updateMomentsFrame(RESOLUCION_DIARIA, values[RESULTADO_INPUT])
+            elif values[RESOLUCION_MENSUAL]:
+                updateMomentsFrame(RESOLUCION_MENSUAL, values[RESULTADO_INPUT])
 
-        elif event == VALOR_PARAMETRICA:
-            updateResultTab(values[VALOR_PARAMETRICA], values[RESULTADO_INPUT])
-
+        elif event == RESOLUCION_HORARIA or event == RESOLUCION_DIARIA or event == RESOLUCION_MENSUAL:
+            updateMomentsFrame(event, values[RESULTADO_INPUT])
 
     changeState(trigger)
 
+def draw_image(element, figure):
+    """
+    Draws the previously created "figure" in the supplied Image Element
+    :param element: an Image Element
+    :param figure: a Matplotlib figure
+    :return: The figure canvas
+    """
+
+    plt.close('all')        # erases previously drawn plots
+    canv = FigureCanvasAgg(figure)
+    buf = io.BytesIO()
+    canv.print_figure(buf, format='png')
+    if buf is None:
+        return None
+    buf.seek(0)
+    element.update(data=buf.read())
+    return canv
 
 def cargarConfig(config_name):
     new_data = reader.readData(config_name)
     datastaticsim.FromFileToData(new_data)
     setStaticSimViewValuesFromFile(datastaticsim.GetValues())
-    window[CONFIG_FILE_TEXT].update(config_name)
-    window[SIMULAR_INPUT].update(disabled=False)
+    main_window[CONFIG_FILE_TEXT].update(config_name)
+    main_window[SIMULAR_INPUT].update(disabled=False)
 
 def cargarSesionPrevia(sesion_previa):
     name = os.path.basename(sesion_previa)
     print(name)
-    window[NOMBRE_INPUT].update(name)
+    main_window[NOMBRE_INPUT].update(name)
     config_name = sesion_previa + "/config_static_sim_data.yaml"
     if os.path.isfile(config_name):
         cargarConfig(config_name)
@@ -543,12 +590,14 @@ def cargarSesionPrevia(sesion_previa):
         result_file = sesion_previa + "/result/" + RESULT_FILE
         if os.path.isfile(result_file):
             new_data = reader.readData(result_file)
-            result_data.FromFileToData(new_data)
+            global result_data
+            result_data = rd.ResultDataCreator().createDataFromFile(new_data)
+
             choice = popUpSesionYaGenerada()
             if choice == VER_RESULTADOS_OPTION:
                 mostrarResultados()
             elif choice == RELANZAR_SIM_OPTION:
-                lanzarSimulacion(window[CONFIG_FILE_TEXT].get(), window[NOMBRE_INPUT].get(), window[DESCRIPCION_INPUT].get())
+                lanzarSimulacion(main_window[CONFIG_FILE_TEXT].get(), main_window[NOMBRE_INPUT].get(), main_window[DESCRIPCION_INPUT].get())
             else:
                 sg.popup_error(f"ERROR: Opción de simulación {choice} inválida")
     else:
@@ -624,8 +673,8 @@ def lanzarSimulacion(config_file, session_name, description):   #Config_file, se
 
     result_file = new_dir_name + "result/" + RESULT_FILE
     if os.path.isfile(result_file):
-        new_data = reader.readData(result_file)
-        result_data.FromFileToData(new_data)
+        global result_data
+        result_data = rd.ResultDataCreator().createDataFromFile(reader.readData(result_file))
 
         if result_data.status == "OK":
             mostrarResultados()
@@ -643,42 +692,18 @@ def leerDescripcion(description_file):
     f = open(description_file, "r")
     descripcion = f.read()
     print(descripcion)
-    window[DESCRIPCION_INPUT].update(descripcion)
+    main_window[DESCRIPCION_INPUT].update(descripcion)
     f.close()
 
 def mostrarResultados():
     print("\nMOSTRAR RESULTADOS\n")
+    global result_data
     parametric_var = result_data.parametric_var
     global dict_results
-    if parametric_var == "azimut":
-        window[PARAM_VAR_TEXT].update(result_data.parametric_var)
-        dict_results = result_data.azimut
 
-    elif parametric_var == "connection":
-        window[PARAM_VAR_TEXT].update(result_data.parametric_var)
-        dict_results = result_data.connection
-    
-    elif parametric_var == "no_parametrica":
-        window[PARAM_VAR_TEXT].update(result_data.parametric_var)
-        dict_results = result_data.images_dict
-
-        window[VALOR_PARAMETRICA].update(disabled=True)
-
-    else:
-        sg.popup_error(f"ERROR: variable paramétrica {parametric_var} no contemplada")
-        return
-
-    list_keys = []
-    for key, val in dict_results.items():
-        list_keys.append(key)
-
-    if len(list_keys) > 0:
-        window[VALOR_PARAMETRICA].update(values=list_keys, value=list_keys[0])
-        valor_previo = window[RESULTADO_INPUT].get()
-        updateResultTab(list_keys[0], valor_previo)
-
-    window[TAB_RESULTADOS].update(visible=True)
-    window[TAB_RESULTADOS].select()
+    global result_window
+    if result_window == None:
+        result_window = ResultWindow()
 
 
 def generateDateIsoformat(fecha, hora, min):
@@ -704,45 +729,45 @@ def generateDateIsoformat(fecha, hora, min):
 
 def setStaticSimViewValuesFromFile(data):
     # print(data)
-    window[RESOLUCION_INPUT].update(data["resolucion"])
+    main_window[RESOLUCION_INPUT].update(data["resolucion"])
 
     datetimeStart = datetime.datetime.fromisoformat(data["fecha_inicio"])
     datetimeEnd = datetime.datetime.fromisoformat(data["fecha_fin"])
 
-    window[FECHA_INICIO].update(datetimeStart.date().isoformat())
-    window[FECHA_FIN].update(datetimeEnd.date().isoformat())
+    main_window[FECHA_INICIO].update(datetimeStart.date().isoformat())
+    main_window[FECHA_FIN].update(datetimeEnd.date().isoformat())
 
-    window[HORA_INICIO_INPUT].update(value=datetimeStart.hour)
-    window[MINUTO_INICIO_INPUT].update(value=datetimeStart.minute)
-    window[HORA_FINAL_INPUT].update(value=datetimeEnd.hour)
-    window[MINUTO_FINAL_INPUT].update(value=datetimeEnd.minute)
+    main_window[HORA_INICIO_INPUT].update(value=datetimeStart.hour)
+    main_window[MINUTO_INICIO_INPUT].update(value=datetimeStart.minute)
+    main_window[HORA_FINAL_INPUT].update(value=datetimeEnd.hour)
+    main_window[MINUTO_FINAL_INPUT].update(value=datetimeEnd.minute)
 
-    window[LUGAR_INPUT].update(data["lugar"])
-    window[LATITUD_INPUT].update(data["latitud"])
-    window[LONGITUD_INPUT].update(data["longitud"])
-    window[DIM_X_INPUT].update(data["x"])
-    window[DIM_Y_INPUT].update(data["y"])
-    window[CURVATURA_INPUT].update(data["curvatura"])
-    window[ORIENTACION_INPUT].update(data["orientacion"])
-    window[AZIMUT_INPUT].update(data["azimut"])
+    main_window[LUGAR_INPUT].update(data["lugar"])
+    main_window[LATITUD_INPUT].update(data["latitud"])
+    main_window[LONGITUD_INPUT].update(data["longitud"])
+    main_window[DIM_X_INPUT].update(data["x"])
+    main_window[DIM_Y_INPUT].update(data["y"])
+    main_window[CURVATURA_INPUT].update(data["curvatura"])
+    main_window[ORIENTACION_INPUT].update(data["orientacion"])
+    main_window[AZIMUT_INPUT].update(data["azimut"])
     tec_index = vc.ValueChecker().findValueInList(lista_tecnologias, data["tecnologia"])
-    window[TECNOLOGIA_INPUT].update(set_to_index=tec_index)
-    window[NUM_CEL_X_INPUT].update(data["num_cels_x"])
-    window[NUM_CEL_Y_INPUT].update(data["num_cels_y"])
-    con_index = vc.ValueChecker().findValueInList(lista_conexiones, data["conexion"])
-    window[CONEXION_INPUT].update(set_to_index=con_index)
+    main_window[TECNOLOGIA_INPUT].update(set_to_index=tec_index)
+    main_window[NUM_CEL_X_INPUT].update(data["num_cels_x"])
+    main_window[NUM_CEL_Y_INPUT].update(data["num_cels_y"])
+    con_index = vc.ValueChecker().findValueInList(LISTA_CONEXIONES, data["conexion"])
+    main_window[CONEXION_INPUT].update(set_to_index=con_index)
     tipo_datos_radiacion = data["tipo_datos_radiacion"]
     updateTipoDatosRadiacion(tipo_datos_radiacion=tipo_datos_radiacion)
 
     var_parametrica = data["var_parametrica"]
     if var_parametrica in dict_parametric_vars or var_parametrica == "no_parametrica" :
         par_index = vc.ValueChecker().findValueInList(parametric_keys, var_parametrica)
-        window[PARAMETRIC_VAR_INPUT].update(set_to_index=par_index)
-        window[VALUES_PARAMETRIC_INPUT].update(dict_parametric_vars[var_parametrica])
+        main_window[PARAMETRIC_VAR_INPUT].update(set_to_index=par_index)
+        main_window[VALUES_PARAMETRIC_INPUT].update(dict_parametric_vars[var_parametrica])
         if len(data["valores_parametrica"]) != 0:
-            window[VALUES_PARAMETRIC_INPUT].set_value(data["valores_parametrica"])
-            window[ENABLE_PARAMETRIC_INPUT].update(True)
-            window.write_event_value(ENABLE_PARAMETRIC_INPUT, True)
+            main_window[VALUES_PARAMETRIC_INPUT].set_value(data["valores_parametrica"])
+            main_window[ENABLE_PARAMETRIC_INPUT].update(True)
+            main_window.write_event_value(ENABLE_PARAMETRIC_INPUT, True)
     else:
         sg.popup_error(f"ERROR al cargar archivo de configuración: variable paramétrica {var_parametrica} no se reconoce")
 
@@ -774,7 +799,8 @@ def saveStaticSimViewValuesToFile(data, file_to_save):
 #Máquina Estados
 
 def changeState(trigger):
-    global window
+    print("changeState: " + str(trigger))
+    global main_window
     global state
 
     if state == EstadosVistas.Init:
@@ -785,17 +811,17 @@ def changeState(trigger):
     if state == EstadosVistas.VistaSimulaciones:
         if trigger == STATIC_SIM_SELECTED:
             state = EstadosVistas.VistaSimEstatica
-            window.close()
+            main_window.close()
             VistaSimEstatica()
 
         # if trigger == DYNAMIC_SIM_SELECTED:
-        #     window.close()
+        #     main_window.close()
         #     VistaSimDinamica()
 
     if state == EstadosVistas.VistaSimEstatica:
         if trigger == BACK:
             state = EstadosVistas.VistaSimulaciones
-            window.close()
+            main_window.close()
             VistaSimulaciones()
 
     if trigger != sg.WIN_CLOSED:
@@ -806,52 +832,43 @@ def changeState(trigger):
 
 def updateTipoDatosRadiacion(tipo_datos_radiacion):
     if tipo_datos_radiacion == "clear sky":
-        window[CLEAR_SKY].reset_group()
-        window[CLEAR_SKY].update(value=True)
-        window[TMY_INPUT].update(disabled=True)
-        window[DATA_METEO_INPUT].update(disabled=True)
-        window[DATA_METEO_BROWSER].update(disabled=True)
+        main_window[CLEAR_SKY].reset_group()
+        main_window[CLEAR_SKY].update(value=True)
+        main_window[TMY_INPUT].update(disabled=True)
+        main_window[DATA_METEO_INPUT].update(disabled=True)
+        main_window[DATA_METEO_BROWSER].update(disabled=True)
 
     elif tipo_datos_radiacion == "tmy":
-        window[TMY].reset_group()
-        window[TMY].update(value=True)
-        window[TMY_INPUT].update(disabled=False)
-        window[DATA_METEO_INPUT].update(disabled=True)
-        window[DATA_METEO_BROWSER].update(disabled=True)
+        main_window[TMY].reset_group()
+        main_window[TMY].update(value=True)
+        main_window[TMY_INPUT].update(disabled=False)
+        main_window[DATA_METEO_INPUT].update(disabled=True)
+        main_window[DATA_METEO_BROWSER].update(disabled=True)
 
     elif tipo_datos_radiacion == "data meteo":
-        window[DATA_METEO].reset_group()
-        window[DATA_METEO].update(value=True)
-        window[TMY_INPUT].update(disabled=True)
-        window[DATA_METEO_INPUT].update(disabled=False)
-        window[DATA_METEO_BROWSER].update(disabled=False)
+        main_window[DATA_METEO].reset_group()
+        main_window[DATA_METEO].update(value=True)
+        main_window[TMY_INPUT].update(disabled=True)
+        main_window[DATA_METEO_INPUT].update(disabled=False)
+        main_window[DATA_METEO_BROWSER].update(disabled=False)
 
-def updateResultTab(valor_sel, select_grafica):
-    imagen = ""
-    if valor_sel in dict_results:
-        if select_grafica in dict_results[valor_sel]:
-            imagen = dict_results[valor_sel][select_grafica]
-    updateResultImage(imagen)
-
-def updateResultImage(image):
-    print(image)
-    if os.path.isfile(image):
-        window[RESULT_IMAGE].update(image)
-    else:
-        sg.popup_error(f"ERROR: imagen {image} no existe")
+def updateMomentsFrame(resolucion:str, graph_type:str):
+    print(f"updateMomentsFrame: [{resolucion}]:[{graph_type}]")
+    list_moments = result_data_reader.getMoments(result_data.firstConnection(), result_data.firstAzimut(), graph_type)
+    result_window[MOMENTO_INPUT].update(list_moments, set_to_index=0)
 
 
 def checkAllValues(values):
     ret = True
     
     global fecha_inicio_timestamp
-    fecha_inicio_timestamp = generateDateIsoformat(window[FECHA_INICIO].get(), values[HORA_INICIO_INPUT], values[MINUTO_INICIO_INPUT])
+    fecha_inicio_timestamp = generateDateIsoformat(main_window[FECHA_INICIO].get(), values[HORA_INICIO_INPUT], values[MINUTO_INICIO_INPUT])
     if fecha_inicio_timestamp is None:
         sg.popup_error("Fecha y hora de inicio introducidas no válida")
         ret = False
     
     global fecha_fin_timestamp
-    fecha_fin_timestamp = generateDateIsoformat(window[FECHA_FIN].get(), values[HORA_FINAL_INPUT], values[MINUTO_FINAL_INPUT])
+    fecha_fin_timestamp = generateDateIsoformat(main_window[FECHA_FIN].get(), values[HORA_FINAL_INPUT], values[MINUTO_FINAL_INPUT])
     if fecha_fin_timestamp is None:
         ret = False
         sg.popup_error("Fecha y hora de fin introducidas no válida")
@@ -882,10 +899,23 @@ def acceptInput(value):
 if __name__ == "__main__":
     print("MAIN")
     datastaticsim = dss.DataStaticSim()
+    global result_data
     result_data = rd.ResultData()
     writer = YAMLWriter()
     reader = YAMLReader()
+    result_data_reader = cdr.ConnectionDataReader()
     state = EstadosVistas.Init
+    global result_window
+    result_window = None
+    print(result_window)
     changeState(INIT_SIMULATION)
 
-#todo: set data_radiacion
+#TODO:
+#   - crear updateFrameMoments en función del getMoments (llamar cuando se cambia MOMENTO_INPUT)
+#       |
+#        -> Los momentos no van a ir en un frame porque no se puede actualizar de forma dinámica un layout
+#        -> La solución es hacer un Radio Element como simulación horaria/diaria/mensual y en función de eso actualizar la listbox de MOMENTO_INPUT
+#   - por lo general la imagen que se genera depende del momento específico, pero para el caso de generación eléctrica pueden generarse gráficas de varios tipos
+#   - generateImage tiene que aceptar una lista de momentos
+#   - generateImage peta cuando le pasamos un momento cuyo valor está vacío
+#   - hay que seguir investigando cómo generar gráficas para varios días
