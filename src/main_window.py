@@ -589,14 +589,16 @@ def cargarSesionPrevia(sesion_previa):
             new_data = reader.readData(result_file)
             global result_data
             result_data = rd.ResultDataCreator().createDataFromFile(new_data)
-
-            choice = popUpSesionYaGenerada()
-            if choice == VER_RESULTADOS_OPTION:
-                mostrarResultados()
-            elif choice == RELANZAR_SIM_OPTION:
-                lanzarSimulacion(main_window[CONFIG_FILE_TEXT].get(), main_window[NOMBRE_INPUT].get(), main_window[DESCRIPCION_INPUT].get())
+            if result_data is not None:
+                choice = popUpSesionYaGenerada()
+                if choice == VER_RESULTADOS_OPTION:
+                    mostrarResultados()
+                elif choice == RELANZAR_SIM_OPTION:
+                    lanzarSimulacion(main_window[CONFIG_FILE_TEXT].get(), main_window[NOMBRE_INPUT].get(), main_window[DESCRIPCION_INPUT].get())
+                else:
+                    sg.popup_error(f"ERROR: Opción de simulación {choice} inválida")
             else:
-                sg.popup_error(f"ERROR: Opción de simulación {choice} inválida")
+                sg.popup_error(f"ERROR: archivo de resultados de la simulación vacío")
     else:
         sg.popup_error(f"ERROR: No existe el fichero {config_name}. Cargarlo manualmente")
 
@@ -631,6 +633,7 @@ def generarCarpetaSesion(nombre, file_to_save):
 
 def callSubprocess(*args):
     print(args)
+    print("------------- INICIO DE LA SIMULACIÓN -------------")
     subprocess.run([ANACONDA_EXECUTE, *args])
     print("--------------- FIN DE LA SIMULACIÓN ---------------")
     global subprocess_completed
@@ -673,7 +676,6 @@ def lanzarSimulacion(config_file, session_name, description):   #Config_file, se
     new_dir_name = generarCarpetaSesion(session_name, file_to_save)
     args = [MODEL_SCRIPT, file_to_save, new_dir_name]
     loadingScreen(args)
-
     guardarDescripcion(description, new_dir_name + "descripcion.txt")
 
     result_file = new_dir_name + "result/" + RESULT_FILE
@@ -702,8 +704,6 @@ def leerDescripcion(description_file):
 
 def mostrarResultados():
     print("\nMOSTRAR RESULTADOS\n")
-    global result_data
-    parametric_var = result_data.parametric_var
     global dict_results
 
     global result_window
