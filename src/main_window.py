@@ -111,7 +111,7 @@ def FechaYLugarLayout():
                             sg.Push(),
                             sg.Text("YYYY-DD-MM", key=FECHA_INICIO), 
                             sg.Push(),
-                            sg.CalendarButton(button_text="change date", target=FECHA_INICIO, format="%Y-%m-%d", key=FECHA_INICIO_INPUT)]
+                            sg.CalendarButton(button_text="change date", target=FECHA_INICIO, format="%Y-%m-%d", key=FECHA_INICIO_INPUT, close_when_date_chosen=True)]
     fecha_final_layout =    [sg.Text("Fecha fin", size=min_size),
                             sg.Push(),
                             sg.Text("YYYY-DD-MM", key=FECHA_FIN),
@@ -394,7 +394,6 @@ def mainloop():
     global datastaticsim
     global result_window
     tipo_datos_radiacion = "clear sky"
-    window1, window2 = main_window, None
 
     while True:
         window, event, values = sg.read_all_windows()
@@ -402,9 +401,9 @@ def mainloop():
 
         if event == sg.WIN_CLOSED:
             window.close()
-            if window == window2:       # if closing win 2, mark as closed
-                window2 = None
-            elif window == window1:     # if closing win 1, exit program
+            if window == result_window:
+                result_window = None
+            elif window == main_window:
                 trigger = sg.WIN_CLOSED
                 break
 
@@ -425,6 +424,12 @@ def mainloop():
 
         elif event == CARGAR_SESION_INPUT:
             cargarSesionPrevia(values[CARGAR_SESION_INPUT])
+
+        elif event == FECHA_INICIO_INPUT:
+            main_window[FECHA_INICIO].update(formatCalendarDate(sg.popup_get_date(close_when_chosen=True)))
+
+        elif event == FECHA_FIN_INPUT:
+            main_window[FECHA_FIN].update(formatCalendarDate(sg.popup_get_date(close_when_chosen=True)))
 
         elif event == NUM_CEL_Y_INPUT:
             result_int = acceptInput(str(values[NUM_CEL_Y_INPUT]))
@@ -512,8 +517,9 @@ def mainloop():
         #INPUTs Botones auxiliares
         elif event == BACK: 
             trigger = BACK
-            if window2 != None:
-                window2.close()
+            if result_window != None:
+                result_window.close()
+                result_window = None
             break
         
         elif event == SIMULAR_INPUT:
@@ -522,31 +528,22 @@ def mainloop():
                 lanzarSimulacion(main_window[CONFIG_FILE_TEXT].get(), values[NOMBRE_INPUT], values[DESCRIPCION_INPUT])
 
         elif event == GENERAR_GRAFICA_INPUT:
-            if window.metadata == ParametricVarTypes.AZIMUT_TYPE.value:
-                image_azimut = values[VALOR_PARAMETRICA]
-                image_connection = window[VALOR_NO_PARAMETRICA].DisplayText
-            elif window.metadata == ParametricVarTypes.CONNECTION_TYPE.value:
-                image_connection = values[VALOR_PARAMETRICA]
-                image_azimut = window[VALOR_NO_PARAMETRICA].DisplayText
-            elif window.metadata == ParametricVarTypes.NO_PARAMETRIC_TYPE.value:
-                image_azimut = window[VALOR_PARAMETRICA].DisplayText
-                image_connection = window[VALOR_NO_PARAMETRICA].DisplayText
-            else:
-                sg.popup_error(f"ERROR: variable paramétrica \"{window.metadata}\" no identificada")
-
+            image_connection, image_azimut = getImagesValues(values)
             image = result_data_reader.generateImage(image_connection, image_azimut, values[RESULTADO_INPUT], values[MOMENTO_INPUT][0])
             draw_image(window[RESULT_IMAGE], image)
         
         elif event == RESULTADO_INPUT:
+            image_connection, image_azimut = getImagesValues(values)
             if values[RESOLUCION_HORARIA]:
-                updateMomentsFrame(RESOLUCION_HORARIA, values[RESULTADO_INPUT])
+                updateMomentsFrame(RESOLUCION_HORARIA, values[RESULTADO_INPUT], image_connection, image_azimut)
             elif values[RESOLUCION_DIARIA]:
-                updateMomentsFrame(RESOLUCION_DIARIA, values[RESULTADO_INPUT])
+                updateMomentsFrame(RESOLUCION_DIARIA, values[RESULTADO_INPUT], image_connection, image_azimut)
             elif values[RESOLUCION_MENSUAL]:
-                updateMomentsFrame(RESOLUCION_MENSUAL, values[RESULTADO_INPUT])
+                updateMomentsFrame(RESOLUCION_MENSUAL, values[RESULTADO_INPUT], image_connection, image_azimut)
 
         elif event == RESOLUCION_HORARIA or event == RESOLUCION_DIARIA or event == RESOLUCION_MENSUAL:
-            updateMomentsFrame(event, values[RESULTADO_INPUT])
+            image_connection, image_azimut = getImagesValues(values)
+            updateMomentsFrame(event, values[RESULTADO_INPUT], image_connection, image_azimut)
 
     changeState(trigger)
 
@@ -605,6 +602,14 @@ def cargarSesionPrevia(sesion_previa):
 
 
 
+def formatCalendarDate(date):
+    #format="%Y-%m-%d"
+    ret = ""
+    month = date[0]
+    day = date[1]
+    year = date[2]
+    ret = f"{year}-{str(month).zfill(2)}-{str(day).zfill(2)}"
+    return ret
 
 def popUpSesionYaGenerada():
     layout_choice = [[sg.T('Sesión ya generada')],
@@ -855,9 +860,43 @@ def updateTipoDatosRadiacion(tipo_datos_radiacion):
         main_window[DATA_METEO_INPUT].update(disabled=False)
         main_window[DATA_METEO_BROWSER].update(disabled=False)
 
-def updateMomentsFrame(resolucion:str, graph_type:str):
-    print(f"updateMomentsFrame: [{resolucion}]:[{graph_type}]")
-    list_moments = result_data_reader.getMoments(result_data.firstConnection(), result_data.firstAzimut(), graph_type)
+def getImagesValues(values):
+    global result_window
+    if result_window.metadata == ParametricVarTypes.AZIMUT_TYPE.value:
+        image_azimut = values[VALOR_PARAMETRICA]
+        image_connection = result_window[VALOR_NO_PARAMETRICA].DisplayText
+    elif result_window.metadata == ParametricVarTypes.CONNECTION_TYPE.value:
+        image_connection = values[VALOR_PARAMETRICA]
+        image_azimut = result_window[VALOR_NO_PARAMETRICA].DisplayText
+    elif result_window.metadata == ParametricVarTypes.NO_PARAMETRIC_TYPE.value:
+        image_azimut = result_window[VALOR_PARAMETRICA].DisplayText
+        image_connection = result_window[VALOR_NO_PARAMETRICA].DisplayText
+    else:
+        sg.popup_error(f"ERROR: variable paramétrica \"{result_window.metadata}\" no identificada")
+    
+    return image_connection, image_azimut
+
+
+
+#Si graph_type == GEN_ELECTRICA -> RESOLUCION_HORARIA bloqueada + actualizar valor seleccionado RESULT_RESOLUTION_GROUP
+#else -> desbloquear RESOLUCION_HORARIA
+#después ya solo queda generar gráficas con los valores seleccionados al darle al botón Ver Gráfica
+
+def updateMomentsFrame(resolucion:str, graph_type:str, image_connection:str, image_azimut:int):
+    list_moments = []
+    if resolucion == RESOLUCION_HORARIA:
+        list_moments = result_data_reader.getMoments(image_connection, image_azimut, graph_type)
+    elif resolucion == RESOLUCION_DIARIA:
+        list_moments = result_data_reader.getDays(image_connection, image_azimut, graph_type)
+    elif resolucion == RESOLUCION_MENSUAL:
+        list_moments = result_data_reader.getMonths(image_connection, image_azimut, graph_type)
+        print(list_moments)
+    else:
+        print(f"{resolucion} inválida")
+
+    if len(list_moments) <= 0:
+        sg.popup_error("ERROR actualizando momentos: revisar logs aplicación")
+
     result_window[MOMENTO_INPUT].update(list_moments, set_to_index=0)
 
 
