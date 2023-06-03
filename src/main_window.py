@@ -422,6 +422,8 @@ def mainloop():
                 main_window[CONFIG_FILE_TEXT].update(file_to_save)
                 main_window[SIMULAR_INPUT].update(disabled=False)
 
+                sg.popup_ok(f"Archivo de configuración \"{file_to_save}\" generado correctamente")
+
         elif event == CARGAR_SESION_INPUT:
             cargarSesionPrevia(values[CARGAR_SESION_INPUT])
 
@@ -567,10 +569,13 @@ def draw_image(element, figure):
 
 def cargarConfig(config_name):
     new_data = reader.readData(config_name)
-    datastaticsim.FromFileToData(new_data)
-    setStaticSimViewValuesFromFile(datastaticsim.GetValues())
-    main_window[CONFIG_FILE_TEXT].update(config_name)
-    main_window[SIMULAR_INPUT].update(disabled=False)
+    load_ok = datastaticsim.FromFileToData(new_data)
+    if load_ok:
+        setStaticSimViewValuesFromFile(datastaticsim.GetValues())
+        main_window[CONFIG_FILE_TEXT].update(config_name)
+        main_window[SIMULAR_INPUT].update(disabled=False)
+    else:
+        sg.popup_error("ERROR al cargar el archivo de configuración")
 
 def cargarSesionPrevia(sesion_previa):
     name = os.path.basename(sesion_previa)
@@ -710,6 +715,7 @@ def mostrarResultados():
     global dict_results
 
     global result_window
+    #cerrar ventana result_window y volver a crearla
     if result_window == None:
         result_window = ResultWindow()
 
