@@ -54,11 +54,14 @@ class DataStaticSim():
         file_dict = {STATIC_SIM_DATA_STR : self.data}
         return file_dict
 
-    def FromFileToData(self, new_data):
+    def FromFileToData(self, new_data) -> bool:
         """""
         receives a dictionary and sets data from it
         """""
-        # print(new_data)
-        # print("DataStaticSim::FromFileToData")
-        for id, value in new_data[STATIC_SIM_DATA_STR].items():
-            self.SetValue(id, value)
+        ret = False
+        if STATIC_SIM_DATA_STR in new_data:
+            ret = True
+            for id, value in new_data[STATIC_SIM_DATA_STR].items():
+                self.SetValue(id, value)
+
+        return ret

@@ -24,6 +24,5 @@ class YAMLReader():
         """
 
         with open(file, "r") as fd:
-            data = yaml.load(fd)
+            data = yaml.safe_load(fd)
         return data
-#YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated, as the default Loader is unsafe. Please read https://msg.pyyaml.org/load for full details.

@@ -14,6 +14,9 @@ azimut = 0
 azimuths = []
 connections = []
 list_ret = []
+ret = True
+error = ""
+
 #COMPROBAR PARÁMETROS RECIBIDOS
 if len(sys.argv) == 3:
     dataStaticSimFile = sys.argv[1]
@@ -21,28 +24,31 @@ if len(sys.argv) == 3:
     reader = YAMLReader()
     new_data = reader.readData(dataStaticSimFile)
     datastaticsim = dss.DataStaticSim()
-    datastaticsim.FromFileToData(new_data)
+    ret = datastaticsim.FromFileToData(new_data)
 
-    parametric_var = datastaticsim.GetValue("var_parametrica")
-    result_data = rd.ResultDataCreator().createDataFromParametricVar(parametric_var)
+    if ret:
+        parametric_var = datastaticsim.GetValue("var_parametrica")
+        result_data = rd.ResultDataCreator().createDataFromParametricVar(parametric_var)
 
-    if parametric_var == ParametricVarTypes.AZIMUT_TYPE.value:
-        result_data.addConnection(datastaticsim.GetValue("conexion"))
-        connections.append(datastaticsim.GetValue("conexion"))
-        azimuths = datastaticsim.GetValue("valores_parametrica")
+        if parametric_var == ParametricVarTypes.AZIMUT_TYPE.value:
+            result_data.addConnection(datastaticsim.GetValue("conexion"))
+            connections.append(datastaticsim.GetValue("conexion"))
+            azimuths = datastaticsim.GetValue("valores_parametrica")
 
-    elif parametric_var == ParametricVarTypes.CONNECTION_TYPE.value:
-        result_data.addAzimut(datastaticsim.GetValue("azimut"))
-        azimuths.append(datastaticsim.GetValue("azimut"))
-        connections = datastaticsim.GetValue("valores_parametrica")
+        elif parametric_var == ParametricVarTypes.CONNECTION_TYPE.value:
+            result_data.addAzimut(datastaticsim.GetValue("azimut"))
+            azimuths.append(datastaticsim.GetValue("azimut"))
+            connections = datastaticsim.GetValue("valores_parametrica")
 
-    elif parametric_var == ParametricVarTypes.NO_PARAMETRIC_TYPE.value:
-        result_data.addAzimut(datastaticsim.GetValue("azimut"))
-        result_data.addConnection(datastaticsim.GetValue("conexion"))
-        azimuths.append(datastaticsim.GetValue("azimut"))
-        connections.append(datastaticsim.GetValue("conexion"))
+        elif parametric_var == ParametricVarTypes.NO_PARAMETRIC_TYPE.value:
+            result_data.addAzimut(datastaticsim.GetValue("azimut"))
+            result_data.addConnection(datastaticsim.GetValue("conexion"))
+            azimuths.append(datastaticsim.GetValue("azimut"))
+            connections.append(datastaticsim.GetValue("conexion"))
 
-    print(azimuths, connections)
+        print(azimuths, connections)
+    else:
+        error = f"ERROR al leer el archivo {dataStaticSimFile}"
 
 
 def plot_irr_momento(momento, irr_map, parametric):
@@ -106,40 +112,39 @@ if simulador:
 else:
     connections_path = CONNECTIONS_DEFAULT_PATH
 
-generateDirStruct(session_dir_name)
-ret = False
-error = ""
+if ret:
+    generateDirStruct(session_dir_name)
 
-for azimuth_iter in azimuths:
+    for azimuth_iter in azimuths:
 
-    for connection_iter in connections:
-        # path2 = PATH1 / connection / f'azimuth {azimuth_iter}'
-        print(connection_iter, azimuth_iter)
-        path2 = connections_path + f'{connection_iter}/azimuth {azimuth_iter}'
-        if os.path.isdir(path2):
-            with open(path2 + "/irr_map.pickle", 'rb') as handle:
-                irradiance_map = pickle.load(handle)
-                
-            with open(path2 + "/iv_module.pickle", 'rb') as fichero:
-                iv_curve = pickle.load(fichero)
-        
-            if parametric_var == ParametricVarTypes.AZIMUT_TYPE.value:
-                parametric = azimuth_iter
-            elif parametric_var == ParametricVarTypes.CONNECTION_TYPE.value:
-                parametric = connection_iter
-            elif parametric_var == ParametricVarTypes.NO_PARAMETRIC_TYPE.value:
-                parametric = connection_iter
-            power_pv = pd.read_pickle(path2 + "/power_pv_df.pickle")
-            plot_irr_momento(momento='2018-06-12 12:00:00+02:00', irr_map=irradiance_map, parametric=parametric)
-            plot_iv_momento(momento='2018-06-12 12:00:00+02:00', iv_module=iv_curve, parametric=parametric)
-            plot_power_dia(dia='2018-06-12', power=power_pv, parametric=parametric)
-            ret = True
-        
-        else:
-            ret = False
-            error = "No such file or directory: " + str(path2)
-            break
-generateResultFile(ret, error)
-print(list_ret)
+        for connection_iter in connections:
+            # path2 = PATH1 / connection / f'azimuth {azimuth_iter}'
+            print(connection_iter, azimuth_iter)
+            path2 = connections_path + f'{connection_iter}/azimuth {azimuth_iter}'
+            if os.path.isdir(path2):
+                with open(path2 + "/irr_map.pickle", 'rb') as handle:
+                    irradiance_map = pickle.load(handle)
+                    
+                with open(path2 + "/iv_module.pickle", 'rb') as fichero:
+                    iv_curve = pickle.load(fichero)
+            
+                if parametric_var == ParametricVarTypes.AZIMUT_TYPE.value:
+                    parametric = azimuth_iter
+                elif parametric_var == ParametricVarTypes.CONNECTION_TYPE.value:
+                    parametric = connection_iter
+                elif parametric_var == ParametricVarTypes.NO_PARAMETRIC_TYPE.value:
+                    parametric = connection_iter
+                power_pv = pd.read_pickle(path2 + "/power_pv_df.pickle")
+                plot_irr_momento(momento='2018-06-12 12:00:00+02:00', irr_map=irradiance_map, parametric=parametric)
+                plot_iv_momento(momento='2018-06-12 12:00:00+02:00', iv_module=iv_curve, parametric=parametric)
+                plot_power_dia(dia='2018-06-12', power=power_pv, parametric=parametric)
+                ret = True
+            
+            else:
+                ret = False
+                error = "No such file or directory: " + str(path2)
+                break
+    generateResultFile(ret, error)
+    print(list_ret)
 
 
