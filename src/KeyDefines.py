@@ -110,8 +110,31 @@ LISTA_CONEXIONES        = ("hmSbxPx", "hmSbxPy", "hmSxPbx",
                            "hmSxPby", "hmSxPx", "hmSxPy", 
                            "hmSyPbx", "hmSyPby", "hmSyPx", 
                            "hmSyPy", "SbSx", "SSbx", "SSby")
+LISTA_TECNOLOGIAS       = ("DSC", "CIS", "CdTe", "a-Si", "TF-Si")
+LISTA_TMY               = ("DB1", "DB2", "DB3")
 LISTA_RESULTADOS        = [RECURSO_SOLAR_TEXT, CURVAS_IV_TEXT, GEN_ELECTRICA_TEXT]
+
+MIN_WIDTH = 10
+MIN_HEIGHT = 1
+MIN_SIZE = (MIN_WIDTH, MIN_HEIGHT)
+
+GEOM_MIN_WIDTH = 16
+GEOM_MIN_HEIGHT = 1
+GEOM_MIN_SIZE = (GEOM_MIN_WIDTH, GEOM_MIN_HEIGHT)
+
+MIN_BUTTON_WIDTH = 30
+MIN_BUTTON_HEIGHT = 2
+MIN_BUTTON_SIZE = (MIN_BUTTON_WIDTH, MIN_BUTTON_HEIGHT)
+
+PARAM_VAR_SIZE = (20, 1)
+
+TEXT_SIZE = (20,2)
+SESSION_BUTTON_SIZE = (30, 2)
+
+LISTBOX_SIZE = 5
+
 class ParametricVarTypes(Enum):
     AZIMUT_TYPE = "azimut"
     CONNECTION_TYPE = "connection"
     NO_PARAMETRIC_TYPE = "no_parametrica"
+
